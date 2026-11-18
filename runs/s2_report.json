@@ -1,0 +1,26 @@
+{
+  "s2_passed": true,
+  "gamma_wins_out_of_5": 5,
+  "vanna_wins_out_of_5": 5,
+  "both_wins_out_of_5": 5,
+  "median_gamma_rmse_ratio": 0.11957455700508846,
+  "median_vanna_rmse_ratio": 0.26023360739198315,
+  "per_seed_gamma_ratios": [
+    0.09910935532249976,
+    0.11052379239312742,
+    0.11957455700508846,
+    0.12337992975090556,
+    0.1525654859647136
+  ],
+  "per_seed_vanna_ratios": [
+    0.22447876974439876,
+    0.25316508189522224,
+    0.26023360739198315,
+    0.26397654270445275,
+    0.26867347544178666
+  ],
+  "mean_b0_train_sec": 584.99,
+  "mean_m1_train_sec": 658.21,
+  "est_remaining_40_runs_hr_at_workers": 1.778,
+  "est_total_50_runs_hr_at_workers": 2.235
+}
