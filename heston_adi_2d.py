@@ -175,24 +175,41 @@ def _build_v_banded(v, wv, wvv, kappa, theta, xi, factor):
     return ab
 
 
-def solve_adi_heston(param_fn, snapshot_taus, nx=400, nv=200, n_steps=800,
-                     x_max=4.0, v_max=1.0, cx=0.08, cv=0.02, rannacher_steps=2):
+def solve_adi_heston(param_fn, snapshot_taus, nx=600, nv=300, n_steps=None,
+                     x_max=4.0, v_max=1.0, cx=0.03, cv=0.01, rannacher_steps=4, dt_scale=1):
     """Solves normalized Heston PDE up to max(snapshot_taus) using Hundsdorfer-Verwer ADI.
 
-    Args:
-      param_fn: callable(tau) -> (kappa, theta, xi, rho)
-      snapshot_taus: sorted sequence of maturities > 0 to snapshot (must align with dt grid)
-    Returns:
-      x (nx+1,), v (nv+1,), snapshots dict {tau: U(nv+1, nx+1)}
+    Uses graded piecewise-uniform time steps clustered near tau = 0 when n_steps is None,
+    hitting all EVAL_TAUS = (0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0) on exact grid nodes.
     """
     t_max = float(max(snapshot_taus))
-    dt = t_max / n_steps
-    # Verify every snapshot hits an exact step
+    if n_steps is None and abs(t_max - 2.0) < 1e-12:
+        # Exact step count per segment hitting 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0
+        segments = [
+            (0.02, 200 * dt_scale),
+            (0.05, 150 * dt_scale),
+            (0.10, 125 * dt_scale),
+            (0.25, 150 * dt_scale),
+            (0.50, 125 * dt_scale),
+            (1.00, 200 * dt_scale),
+            (2.00, 400 * dt_scale),
+        ]
+        tau_nodes = [0.0]
+        cur_t = 0.0
+        for end_t, m in segments:
+            seg = np.linspace(cur_t, end_t, m + 1)[1:]
+            tau_nodes.extend(seg.tolist())
+            cur_t = end_t
+    else:
+        ns = 1600 if n_steps is None else n_steps
+        tau_nodes = np.linspace(0.0, t_max, ns + 1).tolist()
+
     snap_steps = {}
     for t_s in snapshot_taus:
-        k_step = int(round(float(t_s) / dt))
-        if abs(k_step * dt - float(t_s)) > 1e-11:
-            raise ValueError(f"Snapshot tau={t_s} not aligned with dt={dt} (n_steps={n_steps})")
+        diffs = [abs(t - float(t_s)) for t in tau_nodes]
+        k_step = int(np.argmin(diffs))
+        if diffs[k_step] > 1e-11:
+            raise ValueError(f"Snapshot tau={t_s} not aligned with ADI time grid")
         snap_steps[k_step] = float(t_s)
 
     x = make_sinh_grid(-x_max, x_max, 0.0, cx, nx)
@@ -233,8 +250,8 @@ def solve_adi_heston(param_fn, snapshot_taus, nx=400, nv=200, n_steps=800,
     snapshots = {}
 
     def step_hv(U_cur, t0, h, th):
-        kap0, tht0, xi0, rho0 = param_fn(t0)
-        kap1, tht1, xi1, rho1 = param_fn(t0 + h)
+        kap0, tht0, xi0, rho0 = param_fn(t0 + 1e-9 * h)
+        kap1, tht1, xi1, rho1 = param_fn(t0 + (1.0 - 1e-9) * h)
         a1_u = apply_a1(U_cur)
         a2_u0 = apply_a2(U_cur, kap0, tht0, xi0)
         a0_u0 = apply_a0(U_cur, xi0, rho0)
@@ -273,14 +290,14 @@ def solve_adi_heston(param_fn, snapshot_taus, nx=400, nv=200, n_steps=800,
         U_next[:, 1:-1] = solve_banded((2, 2), ab_v1, rhs_v2)
         return U_next
 
-    for step_idx in range(1, n_steps + 1):
-        t0 = (step_idx - 1) * dt
+    for step_idx in range(1, len(tau_nodes)):
+        t0 = tau_nodes[step_idx - 1]
+        h = tau_nodes[step_idx] - t0
         if step_idx <= rannacher_steps:
-            # Split into 2 half-steps of implicit Douglas (theta=1) to damp initial kink
-            U = step_hv(U, t0, 0.5 * dt, 1.0)
-            U = step_hv(U, t0 + 0.5 * dt, 0.5 * dt, 1.0)
+            U = step_hv(U, t0, 0.5 * h, 1.0)
+            U = step_hv(U, t0 + 0.5 * h, 0.5 * h, 1.0)
         else:
-            U = step_hv(U, t0, dt, theta_hv)
+            U = step_hv(U, t0, h, theta_hv)
         if step_idx in snap_steps:
             snapshots[snap_steps[step_idx]] = U.copy()
 
@@ -288,11 +305,12 @@ def solve_adi_heston(param_fn, snapshot_taus, nx=400, nv=200, n_steps=800,
 
 
 def eval_adi_on_grid(param_fn, x_eval_grid, taus=hgv.EVAL_TAUS, vs=hgv.EVAL_VS,
-                     nx=400, nv=200, n_steps=800):
+                     nx=600, nv=300, n_steps=None, cx=0.03, cv=0.01, rannacher_steps=4, dt_scale=1):
     """Solves PDE by ADI and evaluates c, cx, gam (c_xx - c_x), cxv on 3D (tau, v, z) grid."""
     t0 = time.perf_counter()
     x_grid, v_grid, snaps = solve_adi_heston(
-        param_fn, taus, nx=nx, nv=nv, n_steps=n_steps
+        param_fn, taus, nx=nx, nv=nv, n_steps=n_steps,
+        cx=cx, cv=cv, rannacher_steps=rannacher_steps, dt_scale=dt_scale,
     )
     out = {k: np.zeros(x_eval_grid.shape, dtype=np.float64) for k in ("c", "cx", "gam", "cxv")}
     for it, tau in enumerate(taus):
