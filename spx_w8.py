@@ -389,11 +389,14 @@ def main():
     parser.add_argument("--t2", required=True)
     parser.add_argument("--out", default="runs/w8_spx_report.json")
     parser.add_argument("--train-pinn", action="store_true")
+    parser.add_argument("--arm", default="M2_zv_lw", choices=("M1", "M2_zv_lw"))
+    parser.add_argument("--param-ckpt", default=None)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--strike-scale", type=float, default=None)
     args = parser.parse_args()
 
-    r1 = load_spx_csv(args.t1)
-    r2 = load_spx_csv(args.t2)
+    r1 = load_spx_csv(args.t1, strike_scale=args.strike_scale)
+    r2 = load_spx_csv(args.t2, strike_scale=args.strike_scale)
     sl1, q1 = process_chain_parity_and_quotes(r1)
     sl2, q2 = process_chain_parity_and_quotes(r2)
     if not sl1 or not sl2:
@@ -401,10 +404,36 @@ def main():
 
     cal1 = calibrate_day1(q1)
     pinn_fn = None
-    if args.train_pinn:
+    if args.param_ckpt:
+        import torch
+        import cvpinn
+        import cvpinn_param as cp8
+        ckpt = torch.load(args.param_ckpt, map_location="cpu", weights_only=True)
+        dom, box = cvpinn.Domain(v_max=0.5), cp8.ParamBox()
+        p_cal = cvpinn.Heston(cal1["kappa"], cal1["theta"], cal1["xi"], cal1["rho"])
+        if ckpt["arm"] == "B0_param":
+            net = cvpinn.Mlp(7, width=int(ckpt["width"]), depth=4)
+            net.load_state_dict(ckpt["state_dict"])
+            net.eval()
+            pinn_fn = cp8.bind_params(
+                lambda x, v, tau, kp, th, xi, rh: net(cp8.param_features(x, v, tau, kp, th, xi, rh, dom, box)),
+                p_cal,
+            )
+        else:
+            extra = ckpt["arm"] == "M_param_plus"
+            net = cvpinn.Mlp(8 + (2 if extra else 0), width=int(ckpt["width"]), depth=4)
+            net.load_state_dict(ckpt["state_dict"])
+            net.eval()
+            u = cp8.make_correction_param(net, dom, box, extra_scales=extra)
+            pinn_fn = cp8.bind_params(cp8.make_price_param(u, "expected"), p_cal)
+    elif args.train_pinn:
         import cvpinn
         p_cal = cvpinn.Heston(cal1["kappa"], cal1["theta"], cal1["xi"], cal1["rho"])
-        pinn_fn = cvpinn.build_and_train("M1", p_cal, args.seed)
+        if args.arm == "M2_zv_lw":
+            import cvpinn_tier2 as t2
+            pinn_fn = t2.train_tier2("M2_zv_lw", p_cal, args.seed)
+        else:
+            pinn_fn = cvpinn.build_and_train(args.arm, p_cal, args.seed)
     cal2 = recalibrate_day2_v0(q2, cal1, pinn_price_fn=pinn_fn)
 
     report = {
@@ -413,7 +442,9 @@ def main():
         "day1_calibration": cal1,
         "day2_recalibration": cal2,
     }
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w") as f:
         json.dump(report, f, indent=2)
     print(json.dumps(report, indent=2))
