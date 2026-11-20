@@ -92,6 +92,19 @@ class TestSPXW8(unittest.TestCase):
             self.assertLess(cal2["fourier_vs_mkt_rmse_t2"], 5e-4)
             self.assertAlmostEqual(cal2["v0_t2"], 0.062, delta=0.005)
 
+    def test_cboe_quote_table_csv_format(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = os.path.join(tmp, "cboe_dl.csv")
+            with open(p, "w") as f:
+                f.write("S&P 500 INDEX (^SPX),5900.00,+10.00\n")
+                f.write("Date: November 18, 2026 at 2:30 PM EST\n\n")
+                f.write("Expiration Date,Calls,Last Sale,Net,Bid,Ask,Volume,IV,Delta,Gamma,Open Interest,Strike,Puts,Last Sale,Net,Bid,Ask,Volume,IV,Delta,Gamma,Open Interest\n")
+                f.write("Fri Dec 18 2026,SPX261218C05900000,90.0,0,89.5,90.5,10,0.15,0.5,0.01,100,5900,SPX261218P05900000,75.0,0,74.5,75.5,10,0.15,-0.5,0.01,100\n")
+                f.write("Fri Dec 04 2026,SPXW261204C05900000,55.0,0,54.5,55.5,10,0.15,0.5,0.01,100,5900,SPXW261204P05900000,48.0,0,47.5,48.5,10,0.15,-0.5,0.01,100\n")
+            rows = spx_w8.load_spx_csv(p)
+            self.assertEqual(len(rows), 4)
+            self.assertEqual({r.series for r in rows}, {"SPX", "SPXW"})
+
 
 if __name__ == "__main__":
     unittest.main()

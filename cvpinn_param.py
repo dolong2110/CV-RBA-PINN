@@ -27,6 +27,16 @@ class ParamBox:
     rho_max: float = -0.1
 
 
+def wide_spx_box():
+    """Expanded parameter box covering high-vol-of-vol stressed SPX/SPXW regimes (xi <= 1.4)."""
+    return ParamBox(
+        kappa_min=0.3, kappa_max=8.0,
+        theta_min=0.005, theta_max=0.20,
+        xi_min=0.05, xi_max=1.40,
+        rho_min=-0.95, rho_max=-0.05,
+    )
+
+
 def beta_param(tau, kap):
     return -torch.expm1(-kap * tau) / kap
 

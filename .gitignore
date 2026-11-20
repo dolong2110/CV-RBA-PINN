@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 .DS_Store
 .mplconfig/
+
+# Large raw market data archives (>50MB/100MB GitHub limit) & licensed WRDS raw CSVs
+# (All files remain intact locally; derived JSON reports, checkpoints, and Cboe sample CSVs are tracked)
+docs/market_data/historical_archives/
+docs/market_data/spx_168days_2024_2025_csv/
+docs/market_data/spx_daily_2026_aug_nov/
+docs/market_data/cboe_datashop_eod_2023_08_25/
+docs/market_data/wrds_optionmetrics/
+*.zip
+*.parquet

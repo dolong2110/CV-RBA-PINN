@@ -35,17 +35,29 @@ DEFAULT_PARAM_CKPT = os.path.join("runs", "param", "checkpoints", "M3_param_plus
 def load_surrogate(ckpt_path=DEFAULT_PARAM_CKPT, box=None):
     ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     arm_base = ckpt.get("arm", "M_param_plus")
-    extra = "plus" in arm_base or "plus" in ckpt.get("upgraded_arm", "")
+    extra = bool(ckpt.get("extra_scales", ("plus" in arm_base) or ("wide" in arm_base) or ("crisis" in arm_base) or ("plus" in ckpt.get("upgraded_arm", ""))))
     width = int(ckpt["width"])
-    dom = cvpinn.Domain(v_max=0.5)
-    box = cp8.ParamBox() if box is None else box
+    v_max = float(ckpt.get("v_max", 0.5))
+    dom = cvpinn.Domain(v_max=v_max)
+    if box is None:
+        box = cp8.ParamBox(**ckpt["box_dict"]) if "box_dict" in ckpt else cp8.ParamBox()
     net = cvpinn.Mlp(8 + (2 if extra else 0), width=width, depth=4)
     net.load_state_dict(ckpt["state_dict"])
     net.eval()
     for p in net.parameters():
         p.requires_grad_(False)
-    u = cp8.make_correction_param(net, dom, box, kind="expected", use_z=True, extra_scales=extra)
-    return cp8.make_price_param(u, "expected"), box
+    base_u = cp8.make_correction_param(net, dom, box, kind="expected", use_z=True, extra_scales=extra)
+    sa = float(ckpt.get("sech_alpha", 0.0))
+    if sa > 0.0:
+        def u_fn(x, v, tau, kap, tht, xi, rho):
+            w = torch.clamp(cp8.total_variance_param(v, tau, kap, tht, "expected"), min=1e-30)
+            z = x / torch.sqrt(w)
+            return (1.0 / torch.cosh(torch.clamp(sa * z, -40.0, 40.0))) * base_u(x, v, tau, kap, tht, xi, rho)
+    else:
+        u_fn = base_u
+    p_fn = cp8.make_price_param(u_fn, "expected")
+    p_fn._v_max = v_max
+    return p_fn, box
 
 
 def _map_params(raw, box: cp8.ParamBox, v0_bounds=(0.002, 0.25)):
@@ -59,9 +71,12 @@ def _map_params(raw, box: cp8.ParamBox, v0_bounds=(0.002, 0.25)):
 
 
 def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts=8,
-                                  adam_steps=60, lbfgs_iter=30, seed=0, preloaded=None):
-    """Fits (kappa, theta, xi, rho, v0(t1)) by exact PyTorch autograd through M3_param_plus."""
+                                  adam_steps=60, lbfgs_iter=30, seed=0, preloaded=None, v0_bounds=None):
+    """Fits (kappa, theta, xi, rho, v0(t1)) by exact PyTorch autograd through M3_param_plus / wide / crisis."""
     price_fn_param, box = load_surrogate(ckpt_path) if preloaded is None else preloaded
+    if v0_bounds is None:
+        vm = float(getattr(price_fn_param, "_v_max", 0.5))
+        v0_bounds = (0.002, round(0.95 * vm, 4)) if vm > 0.5 else (0.002, 0.25)
     t0 = time.perf_counter()
 
     taus = torch.tensor([q[0] for q in quotes], dtype=torch.float64)
@@ -80,7 +95,7 @@ def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts
     xs_b = xs[None, :].expand(n_starts, n_q).reshape(-1)
 
     for _ in range(adam_steps):
-        kap, tht, xi, rho, v0 = _map_params(raw, box)
+        kap, tht, xi, rho, v0 = _map_params(raw, box, v0_bounds=v0_bounds)
         pred = price_fn_param(
             xs_b,
             v0[:, None].expand(n_starts, n_q).reshape(-1),
@@ -97,7 +112,7 @@ def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts
         opt.step()
 
     with torch.no_grad():
-        kap, tht, xi, rho, v0 = _map_params(raw, box)
+        kap, tht, xi, rho, v0 = _map_params(raw, box, v0_bounds=v0_bounds)
         pred = price_fn_param(
             xs_b, v0[:, None].expand(n_starts, n_q).reshape(-1), taus_b,
             kap[:, None].expand(n_starts, n_q).reshape(-1),
@@ -113,7 +128,7 @@ def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts
 
     def closure():
         lbfgs.zero_grad()
-        kp, th, xv, rh, vv = _map_params(best_raw, box)
+        kp, th, xv, rh, vv = _map_params(best_raw, box, v0_bounds=v0_bounds)
         pr = price_fn_param(
             xs, vv.expand(n_q), taus, kp.expand(n_q), th.expand(n_q), xv.expand(n_q), rh.expand(n_q)
         )
@@ -125,7 +140,7 @@ def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts
     cal_sec = time.perf_counter() - t0
 
     with torch.no_grad():
-        kp, th, xv, rh, vv = [float(t.item()) for t in _map_params(best_raw, box)]
+        kp, th, xv, rh, vv = [float(t.item()) for t in _map_params(best_raw, box, v0_bounds=v0_bounds)]
         pr_surr = price_fn_param(
             xs, torch.full_like(xs, vv), taus,
             torch.full_like(xs, kp), torch.full_like(xs, th),
@@ -144,9 +159,13 @@ def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts
     }
 
 
-def recalibrate_day2_differentiable(quotes_t2, struct_params, preloaded=None, ckpt_path=DEFAULT_PARAM_CKPT):
+def recalibrate_day2_differentiable(quotes_t2, struct_params, preloaded=None, ckpt_path=DEFAULT_PARAM_CKPT, v0_max=None):
     """1D autograd L-BFGS polish of scalar v0(t2) on Day-2 quotes."""
     price_fn_param, _ = load_surrogate(ckpt_path) if preloaded is None else preloaded
+    if v0_max is None:
+        vm = float(getattr(price_fn_param, "_v_max", 0.5))
+        v0_max = round(0.95 * vm, 4) if vm > 0.5 else 0.25
+    v_span = v0_max - 0.002
     t0 = time.perf_counter()
     taus = torch.tensor([q[0] for q in quotes_t2], dtype=torch.float64)
     xs = torch.tensor([q[1] for q in quotes_t2], dtype=torch.float64)
@@ -165,7 +184,7 @@ def recalibrate_day2_differentiable(quotes_t2, struct_params, preloaded=None, ck
 
     def closure():
         lbfgs.zero_grad()
-        vv = 0.002 + 0.248 * torch.sigmoid(raw_v[0])
+        vv = 0.002 + v_span * torch.sigmoid(raw_v[0])
         pr = price_fn_param(xs, vv.expand(n_q), taus, kp, th, xv, rh)
         loss = (ws * (pr - ym) ** 2).mean()
         loss.backward()
@@ -173,17 +192,27 @@ def recalibrate_day2_differentiable(quotes_t2, struct_params, preloaded=None, ck
 
     lbfgs.step(closure)
     sec = time.perf_counter() - t0
-    v0_t2 = float((0.002 + 0.248 * torch.sigmoid(raw_v[0])).detach().item())
+    v0_t2 = float((0.002 + v_span * torch.sigmoid(raw_v[0])).detach().item())
     with torch.no_grad():
         pr_surr = price_fn_param(xs, torch.full_like(xs, v0_t2), taus, kp, th, xv, rh).numpy()
     slice_data, y_mkt, _ = spx_w8._group_quotes(quotes_t2)
     pr_fourier = spx_w8.heston_prices_by_slice(slice_data, v0_t2, struct_params["kappa"], struct_params["theta"], struct_params["xi"], struct_params["rho"])
+    taus_s = torch.tensor(np.concatenate([np.full(len(xs_i), t_i) for t_i, xs_i in slice_data]), dtype=torch.float64)
+    xs_s = torch.tensor(np.concatenate([xs_i for _, xs_i in slice_data]), dtype=torch.float64)
+    with torch.no_grad():
+        pr_surr_grouped = price_fn_param(
+            xs_s, torch.full_like(xs_s, v0_t2), taus_s,
+            torch.full_like(xs_s, struct_params["kappa"]),
+            torch.full_like(xs_s, struct_params["theta"]),
+            torch.full_like(xs_s, struct_params["xi"]),
+            torch.full_like(xs_s, struct_params["rho"]),
+        ).numpy()
     return {
         "v0_t2": v0_t2,
         "calib_sec": round(sec, 4),
         "surr_vs_mkt_rmse_t2": float(np.sqrt(np.mean((pr_surr - ym.numpy()) ** 2))),
         "fourier_vs_mkt_rmse_t2": float(np.sqrt(np.mean((pr_fourier - y_mkt) ** 2))),
-        "surr_vs_fourier_rmse_t2": float(np.sqrt(np.mean((pr_surr - np.array([q[2] for q in quotes_t2])) ** 2))),
+        "surr_vs_fourier_rmse_t2": float(np.sqrt(np.mean((pr_surr_grouped - pr_fourier) ** 2))),
     }
 
 
@@ -224,6 +253,8 @@ def _make_noisy_chain(path, quote_dt_str, expiries, v0, p_tup, noise_bps=1.5, se
 
 def main():
     preloaded = load_surrogate()
+    # One-step autograd warmup so first benchmarked regime excludes PyTorch graph init
+    _ = calibrate_day1_differentiable([(0.1, 0.0, 0.025, 0.001), (0.25, 0.05, 0.07, 0.001)], preloaded=preloaded, n_starts=2, adam_steps=2, lbfgs_iter=2)
     expiries_t1 = [
         ("2026-12-04", "SPXW", 5900.0, 0.045, 0.013),
         ("2026-12-18", "SPX", 5900.0, 0.045, 0.013),
@@ -287,7 +318,7 @@ def main():
     print(f"Saved {out_json}")
 
     # Plot calibration speedup & Day-1 / Day-2 fit parity
-    fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.6))
+    fig, axes = plt.subplots(1, 2, figsize=(13.2, 4.9), gridspec_kw={"wspace": 0.28})
     names = list(report.keys())
     x = np.arange(len(names))
     w = 0.34
@@ -296,25 +327,27 @@ def main():
     axes[0].bar(x - 0.5 * w, de_ms, width=w, color="#1f77b4", label="SciPy DE + Fourier")
     axes[0].bar(x + 0.5 * w, nn_ms, width=w, color="#2ca02c", label="Differentiable M3_param_plus")
     axes[0].set_yscale("log")
+    axes[0].set_ylim(min(nn_ms) * 0.55, max(de_ms) * 3.8)
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(names, rotation=12)
+    axes[0].set_xticklabels(names, rotation=10)
     axes[0].set_ylabel("Day-1 5-Parameter Calibration Time (ms, log scale)")
-    axes[0].set_title("Calibration Speed: Global DE+Fourier vs. Batched Autograd")
+    axes[0].set_title("Day-1 Calibration Speed (DE vs. Autograd)", fontsize=10.8)
     axes[0].grid(axis="y", alpha=0.25)
-    axes[0].legend(frameon=True)
+    axes[0].legend(loc="upper left", frameon=True, fontsize=8.8)
 
     de_t2 = [report[k]["fourier_de"]["day2"]["fourier_vs_mkt_rmse_t2"] * 1e4 for k in names]
     nn_t2 = [report[k]["neural_autograd"]["day2"]["fourier_vs_mkt_rmse_t2"] * 1e4 for k in names]
     axes[1].bar(x - 0.5 * w, de_t2, width=w, color="#1f77b4", label="DE + Fourier Fit")
     axes[1].bar(x + 0.5 * w, nn_t2, width=w, color="#2ca02c", label="M3_param_plus Calibrated Fit")
+    axes[1].set_ylim(0.0, max(max(de_t2), max(nn_t2)) * 1.28)
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(names, rotation=12)
+    axes[1].set_xticklabels(names, rotation=10)
     axes[1].set_ylabel("Out-of-Sample Day-2 Normalized Price RMSE (bps)")
-    axes[1].set_title("Out-of-Sample Day-2 Pricing Accuracy (Evaluated by Exact Fourier)")
+    axes[1].set_title("Out-of-Sample Day-2 Fit (Exact Fourier)", fontsize=10.8)
     axes[1].grid(axis="y", alpha=0.25)
-    axes[1].legend(frameon=True)
+    axes[1].legend(loc="upper right", frameon=True, fontsize=8.8)
 
-    fig.suptitle("Differentiable Neural Calibration via 10D M3_param_plus Across SPX-Style Chains", fontsize=12)
+    fig.suptitle("Differentiable Neural Calibration via 10D M3_param_plus Across SPX-Style Chains", fontsize=12, y=1.02)
     out_fig = os.path.join("paper", "fig15_diff_calibration.png")
     fig.savefig(out_fig, dpi=220, bbox_inches="tight")
     plt.close(fig)

@@ -22,6 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import RectBivariateSpline
+from scipy.special import erfc
 import torch
 
 import cvpinn
@@ -70,88 +71,73 @@ def simulate_heston_paths(p_tup, f0, v0, T, n_steps, n_paths, seed=42):
     return F, V
 
 
-def build_fourier_slice_splines(p_tup, taus_unique, x_min=-0.6, x_max=0.6, nx=121, v_max=0.45, nv=90):
-    """Precomputes cubic splines of Exact Fourier (c, cx, gam, cv) at each discrete tau > 0."""
-    xs = np.linspace(x_min, x_max, nx)
-    # Cluster v near 0 via quadratic spacing
-    vs = np.maximum(v_max * (np.linspace(0.0, 1.0, nv) ** 2), 1e-5)
-    splines = {}
-    kappa, theta, xi, rho = p_tup
+def _bs_carrier_vec(x, v, tau, p_tup):
+    """Exact vectorized Black-Scholes expected-variance carrier (b, b_x, b_gam, b_v)."""
+    kappa, theta = p_tup[0], p_tup[1]
+    w = np.maximum(hgv.w_exp_stable(v, tau, kappa, theta), 1e-30)
+    s = np.sqrt(w)
+    d1 = x / s + 0.5 * s
+    d2 = d1 - s
+    nd1 = 0.5 * erfc(-d1 / math.sqrt(2.0))
+    nd2 = 0.5 * erfc(-d2 / math.sqrt(2.0))
+    pdf2 = np.where(np.abs(d2) <= 38.0, np.exp(-0.5 * np.minimum(d2 * d2, 1500.0)) / math.sqrt(2.0 * math.pi), 0.0)
+    ex = np.exp(np.clip(x, -40.0, 40.0))
+    b_c = np.maximum(ex * nd1 - nd2, 0.0)
+    b_cx = ex * nd1
+    b_gam = pdf2 / s
+    beta_t = -math.expm1(-kappa * tau) / kappa
+    b_cv = 0.5 * beta_t * b_gam
+    return w, b_c, b_cx, b_gam, b_cv
 
-    for tau in taus_unique:
-        if tau <= 1e-10:
-            continue
-        # Evaluate vectorized Lewis-Albrecher Fourier on fixed rectangular (vs, xs) grid
-        wide = min(2.0, math.pi / (2.0 * max(abs(x_min), abs(x_max), 1e-3)))
-        p_near = min(0.5, wide)
-        n_near = int(math.ceil(4.0 / p_near))
-        sums = np.zeros((4, nv, nx), dtype=np.float64)
-        u_cur, first = 0.0, True
-        v_min = float(vs[0])
-        while u_cur < 2e5:
-            if first:
-                first = False
-                starts = np.arange(n_near) * p_near
-                widths = np.full(n_near, p_near)
-                u_cur = n_near * p_near
-            else:
-                starts = u_cur + np.arange(64) * wide
-                widths = np.full(64, wide)
-                u_cur += 64 * wide
-            u_nodes = (starts[:, None] + 0.5 * widths[:, None] * (hgv.GLX[None, :] + 1.0)).ravel()
-            w_nodes = (0.5 * widths[:, None] * hgv.GLW[None, :]).ravel()
-            z_cf = u_nodes - 0.5j
-            a = kappa - 1j * rho * xi * z_cf
-            d = np.sqrt(a * a + (xi * xi) * (z_cf * z_cf + 1j * z_cf))
-            g = (a - d) / (a + d)
-            e = np.exp(-d * tau)
-            big_b = (a - d) / (xi * xi) * (1.0 - e) / (1.0 - g * e)
-            big_a = (kappa * theta / (xi * xi)) * ((a - d) * tau - 2.0 * np.log((1.0 - g * e) / (1.0 - g)))
-            env = np.abs(np.exp(big_a + big_b * v_min)) * (1.0 + np.abs(big_b))
-            phi = (np.exp(big_a[:, None] + big_b[:, None] * vs[None, :])[:, :, None]
-                   * np.exp(1j * u_nodes[:, None, None] * xs[None, None, :]))
-            den = (u_nodes * u_nodes + 0.25)[:, None, None]
-            f = (0.5 + 1j * u_nodes)[:, None, None]
-            b_arr, w_arr = big_b[:, None, None], w_nodes[:, None, None]
-            sums[0] += np.sum(w_arr * (phi / den).real, axis=0)
-            sums[1] += np.sum(w_arr * (f * phi / den).real, axis=0)
-            sums[2] += np.sum(w_arr * phi.real, axis=0)
-            sums[3] += np.sum(w_arr * (b_arr * phi / den).real, axis=0)
-            if len(starts) >= 3 and np.max(env[-32:]) < 1e-14:
-                break
-        pref = np.exp(0.5 * xs)[None, :] / math.pi
-        ex = np.exp(xs)[None, :]
-        c_mat = ex - pref * sums[0]
-        cx_mat = ex - pref * sums[1]
-        gam_mat = pref * sums[2]
-        cv_mat = -pref * sums[3]
+
+def build_fourier_slice_splines(p_tup, taus_unique, v_max=0.45, nv=24, z_max=5.5, nz=49):
+    """Precomputes (v, z)-splines of Exact Fourier minus BS carrier at each discrete tau > 0."""
+    vs = 5e-4 + (v_max - 5e-4) * (np.linspace(0.0, 1.0, nv) ** 2.2)
+    zs = np.linspace(-z_max, z_max, nz)
+    taus_pos = [t for t in taus_unique if t > 1e-10]
+    x_grid, f_out = hgv.heston_eval_grid(p_tup, taus=taus_pos, vs=vs, zs=zs, tol=1e-9, max_u=1.5e4)
+    splines = {}
+    for it, tau in enumerate(taus_pos):
+        x_mat = x_grid[it]
+        _, bc, bcx, bgam, bcv = _bs_carrier_vec(x_mat, vs[:, None], tau, p_tup)
         splines[round(tau, 10)] = {
-            "c": RectBivariateSpline(vs, xs, c_mat, kx=3, ky=3),
-            "cx": RectBivariateSpline(vs, xs, cx_mat, kx=3, ky=3),
-            "gam": RectBivariateSpline(vs, xs, gam_mat, kx=3, ky=3),
-            "cv": RectBivariateSpline(vs, xs, cv_mat, kx=3, ky=3),
-            "x_bounds": (x_min, x_max),
+            "dc": RectBivariateSpline(vs, zs, f_out["c"][it] - bc, kx=3, ky=3),
+            "dcx": RectBivariateSpline(vs, zs, f_out["cx"][it] - bcx, kx=3, ky=3),
+            "dgam": RectBivariateSpline(vs, zs, f_out["gam"][it] - bgam, kx=3, ky=3),
+            "dcv": RectBivariateSpline(vs, zs, f_out["cv"][it] - bcv, kx=3, ky=3),
             "v_bounds": (float(vs[0]), float(vs[-1])),
+            "z_max": z_max,
+            "p_tup": p_tup,
         }
     return splines
 
 
 def eval_fourier_sens(splines, F_vec, V_vec, K, tau):
-    """Returns dollar (C, Delta_F, Gamma_F, Vega_v) from precomputed Fourier splines."""
+    """Returns dollar (C, Delta_F, Gamma_F, Vega_v) from exact BS carrier + (v, z) Fourier residual."""
     if tau <= 1e-10:
         pay = np.maximum(F_vec - K, 0.0)
         return pay, (F_vec > K).astype(np.float64), np.zeros_like(F_vec), np.zeros_like(F_vec)
     sp = splines[round(tau, 10)]
-    x = np.clip(np.log(F_vec / K), sp["x_bounds"][0], sp["x_bounds"][1])
-    v = np.clip(V_vec, sp["v_bounds"][0], sp["v_bounds"][1])
-    c = sp["c"](v, x, grid=False)
-    cx = sp["cx"](v, x, grid=False)
-    gam = sp["gam"](v, x, grid=False)
-    cv = sp["cv"](v, x, grid=False)
+    x = np.log(F_vec / K)
+    w, bc, bcx, bgam, bcv = _bs_carrier_vec(x, V_vec, tau, sp["p_tup"])
+    z = x / np.sqrt(w)
+    zm = sp["z_max"]
+    # Smooth C^1 cosine taper for |z| in [zm - 1.0, zm] where Heston - BS -> 0 exponentially
+    taper = np.where(
+        np.abs(z) <= zm - 1.0,
+        1.0,
+        np.where(np.abs(z) >= zm, 0.0, 0.5 * (1.0 + np.cos(math.pi * (np.abs(z) - (zm - 1.0))))),
+    )
+    vc = np.clip(V_vec, sp["v_bounds"][0], sp["v_bounds"][1])
+    zc = np.clip(z, -zm, zm)
+    c = np.maximum(bc + taper * sp["dc"](vc, zc, grid=False), np.maximum(np.exp(x) - 1.0, 0.0))
+    cx = bcx + taper * sp["dcx"](vc, zc, grid=False)
+    gam = bgam + taper * sp["dgam"](vc, zc, grid=False)
+    cv = bcv + taper * sp["dcv"](vc, zc, grid=False)
     return K * c, (K / F_vec) * cx, (K / (F_vec ** 2)) * gam, K * cv
 
 
-def eval_pinn_sens(price_fn, F_vec, V_vec, K, tau, chunk=8192):
+def eval_pinn_sens(price_fn, F_vec, V_vec, K, tau, chunk=32768):
     """Returns dollar (C, Delta_F, Gamma_F, Vega_v) from PyTorch autodiff on a PINN price_fn."""
     n = len(F_vec)
     c_out = np.empty(n, dtype=np.float64)
@@ -160,12 +146,13 @@ def eval_pinn_sens(price_fn, F_vec, V_vec, K, tau, chunk=8192):
     cv_out = np.empty(n, dtype=np.float64)
     x_np = np.clip(np.log(F_vec / K), -2.49, 2.49)
     v_np = np.clip(V_vec, 0.0, 0.499)
+    t_np = np.maximum(np.broadcast_to(np.asarray(tau, dtype=np.float64), (n,)), 1e-4)
 
     for i0 in range(0, n, chunk):
         sl = slice(i0, min(i0 + chunk, n))
         xt = torch.tensor(x_np[sl], requires_grad=True)
         vt = torch.tensor(v_np[sl], requires_grad=True)
-        tt = torch.full_like(xt, max(tau, 1e-4))
+        tt = torch.tensor(t_np[sl])
         c = price_fn(xt, vt, tt)
         cx, cv = torch.autograd.grad(c, (xt, vt), torch.ones_like(c), create_graph=True, allow_unused=True)
         cx = torch.zeros_like(xt) if cx is None else cx
@@ -230,19 +217,20 @@ def summarize_pnl(pnl, ref_pnl=None):
     return out
 
 
-def run_hedging_scenario(p_tup, models, f0=100.0, v0=0.01, T_liab=0.05, T_bench=0.25,
-                         K_liab=100.0, K_b1=97.0, K_b2=103.0, n_steps=25, n_paths=15000, seed=42):
+def run_hedging_scenario(p_tup, models, f0=100.0, v0=0.01, T_liab=0.05, T_b1=0.10, T_b2=0.50,
+                         K_liab=100.0, K_b1=100.0, K_b2=100.0, n_steps=25, n_paths=15000, seed=42):
     t0 = time.perf_counter()
     F, V = simulate_heston_paths(p_tup, f0, v0, T_liab, n_steps, n_paths, seed=seed)
     dt = T_liab / n_steps
 
-    # Precompute Exact Fourier splines at all required tau slices for liability and benchmarks
+    # Precompute Exact Fourier splines at all required tau slices for liability and 2-maturity calendar benchmarks
     taus_needed = set()
     for k in range(n_steps + 1):
         tk = k * dt
         if T_liab - tk > 1e-10:
             taus_needed.add(round(T_liab - tk, 10))
-        taus_needed.add(round(T_bench - tk, 10))
+        taus_needed.add(round(T_b1 - tk, 10))
+        taus_needed.add(round(T_b2 - tk, 10))
     splines = build_fourier_slice_splines(p_tup, sorted(taus_needed))
 
     # Verify martingale and unhedged liability MC convergence
@@ -255,68 +243,65 @@ def run_hedging_scenario(p_tup, models, f0=100.0, v0=0.01, T_liab=0.05, T_bench=
     b2_mkt = np.empty((n_steps + 1, n_paths), dtype=np.float64)
     for k in range(n_steps + 1):
         tk = k * dt
-        b1_mkt[k] = eval_fourier_sens(splines, F[k], V[k], K_b1, T_bench - tk)[0]
-        b2_mkt[k] = eval_fourier_sens(splines, F[k], V[k], K_b2, T_bench - tk)[0]
+        b1_mkt[k] = eval_fourier_sens(splines, F[k], V[k], K_b1, T_b1 - tk)[0]
+        b2_mkt[k] = eval_fourier_sens(splines, F[k], V[k], K_b2, T_b2 - tk)[0]
 
     all_names = ["Exact Fourier"] + list(models.keys())
     delta_pnls = {name: np.zeros(n_paths, dtype=np.float64) for name in all_names}
     dgv_pnls = {name: np.zeros(n_paths, dtype=np.float64) for name in all_names}
 
+    F_pre = F[:n_steps].reshape(-1)
+    V_pre = V[:n_steps].reshape(-1)
+    tau_l_pre = np.repeat(np.array([T_liab - k * dt for k in range(n_steps)], dtype=np.float64), n_paths)
+    tau_b1_pre = np.repeat(np.array([T_b1 - k * dt for k in range(n_steps)], dtype=np.float64), n_paths)
+    tau_b2_pre = np.repeat(np.array([T_b2 - k * dt for k in range(n_steps)], dtype=np.float64), n_paths)
+    df_all = F[1:] - F[:n_steps]
+    db1_all = b1_mkt[1:] - b1_mkt[:n_steps]
+    db2_all = b2_mkt[1:] - b2_mkt[:n_steps]
+
     for name in all_names:
-        pnl_d = np.full(n_paths, c0_exact, dtype=np.float64)
-        pnl_dgv = np.full(n_paths, c0_exact, dtype=np.float64)
+        if name == "Exact Fourier":
+            d0 = np.empty((n_steps, n_paths)); g0 = np.empty((n_steps, n_paths)); v0_s = np.empty((n_steps, n_paths))
+            d1 = np.empty((n_steps, n_paths)); g1 = np.empty((n_steps, n_paths)); v1_s = np.empty((n_steps, n_paths))
+            d2 = np.empty((n_steps, n_paths)); g2 = np.empty((n_steps, n_paths)); v2_s = np.empty((n_steps, n_paths))
+            for k in range(n_steps):
+                tk = k * dt
+                _, d0[k], g0[k], v0_s[k] = eval_fourier_sens(splines, F[k], V[k], K_liab, T_liab - tk)
+                _, d1[k], g1[k], v1_s[k] = eval_fourier_sens(splines, F[k], V[k], K_b1, T_b1 - tk)
+                _, d2[k], g2[k], v2_s[k] = eval_fourier_sens(splines, F[k], V[k], K_b2, T_b2 - tk)
+        else:
+            pfn = models[name]
+            _, d0_f, g0_f, v0_f = eval_pinn_sens(pfn, F_pre, V_pre, K_liab, tau_l_pre)
+            _, d1_f, g1_f, v1_f = eval_pinn_sens(pfn, F_pre, V_pre, K_b1, tau_b1_pre)
+            _, d2_f, g2_f, v2_f = eval_pinn_sens(pfn, F_pre, V_pre, K_b2, tau_b2_pre)
+            d0, g0, v0_s = d0_f.reshape(n_steps, n_paths), g0_f.reshape(n_steps, n_paths), v0_f.reshape(n_steps, n_paths)
+            d1, g1, v1_s = d1_f.reshape(n_steps, n_paths), g1_f.reshape(n_steps, n_paths), v1_f.reshape(n_steps, n_paths)
+            d2, g2, v2_s = d2_f.reshape(n_steps, n_paths), g2_f.reshape(n_steps, n_paths), v2_f.reshape(n_steps, n_paths)
 
-        for k in range(n_steps):
-            tk = k * dt
-            tau_l = T_liab - tk
-            tau_b = T_bench - tk
-            fk, vk = F[k], V[k]
-            df_step = F[k + 1] - fk
-            db1_step = b1_mkt[k + 1] - b1_mkt[k]
-            db2_step = b2_mkt[k + 1] - b2_mkt[k]
+        pnl_d = c0_exact + np.sum(d0 * df_all, axis=0) - payoff_T
 
-            if name == "Exact Fourier":
-                _, d0, g0, v0_s = eval_fourier_sens(splines, fk, vk, K_liab, tau_l)
-                _, d1, g1, v1_s = eval_fourier_sens(splines, fk, vk, K_b1, tau_b)
-                _, d2, g2, v2_s = eval_fourier_sens(splines, fk, vk, K_b2, tau_b)
-            else:
-                pfn = models[name]
-                _, d0, g0, v0_s = eval_pinn_sens(pfn, fk, vk, K_liab, tau_l)
-                _, d1, g1, v1_s = eval_pinn_sens(pfn, fk, vk, K_b1, tau_b)
-                _, d2, g2, v2_s = eval_pinn_sens(pfn, fk, vk, K_b2, tau_b)
+        sc_g = 100.0
+        a11, a12 = sc_g * g1, sc_g * g2
+        a21, a22 = v1_s, v2_s
+        y1, y2 = sc_g * g0, v0_s
+        reg = 1e-3
+        m11 = a11 * a11 + a21 * a21 + reg
+        m12 = a11 * a12 + a21 * a22
+        m22 = a12 * a12 + a22 * a22 + reg
+        rhs1 = a11 * y1 + a21 * y2
+        rhs2 = a12 * y1 + a22 * y2
+        det = m11 * m22 - m12 * m12
+        w1 = np.clip((m22 * rhs1 - m12 * rhs2) / det, -5.0, 5.0)
+        w2 = np.clip((-m12 * rhs1 + m11 * rhs2) / det, -5.0, 5.0)
+        phi_f = d0 - w1 * d1 - w2 * d2
+        pnl_dgv = c0_exact + np.sum(phi_f * df_all + w1 * db1_all + w2 * db2_all, axis=0) - payoff_T
 
-            # 1. Delta-only hedge
-            pnl_d += d0 * df_step
-
-            # 2. Delta-Gamma-Vega 2x2 damped least-squares solve per path:
-            #    [g1, g2; v1, v2] [w1; w2] = [g0; v0]
-            # Scale Gamma by F^2/100 (=100) so Gamma and Vega rows have comparable O(10) units
-            sc_g = 100.0
-            a11, a12 = sc_g * g1, sc_g * g2
-            a21, a22 = v1_s, v2_s
-            y1, y2 = sc_g * g0, v0_s
-            # 2x2 normal equations (A^T A + reg I) w = A^T y with mild reg=1e-2 for B0 stability
-            reg = 1e-2
-            m11 = a11 * a11 + a21 * a21 + reg
-            m12 = a11 * a12 + a21 * a22
-            m22 = a12 * a12 + a22 * a22 + reg
-            rhs1 = a11 * y1 + a21 * y2
-            rhs2 = a12 * y1 + a22 * y2
-            det = m11 * m22 - m12 * m12
-            w1 = np.clip((m22 * rhs1 - m12 * rhs2) / det, -5.0, 5.0)
-            w2 = np.clip((-m12 * rhs1 + m11 * rhs2) / det, -5.0, 5.0)
-            phi_f = d0 - w1 * d1 - w2 * d2
-
-            pnl_dgv += phi_f * df_step + w1 * db1_step + w2 * db2_step
-
-        pnl_d -= payoff_T
-        pnl_dgv -= payoff_T
         delta_pnls[name] = pnl_d
         dgv_pnls[name] = pnl_dgv
 
     elapsed = time.perf_counter() - t0
     res = {
-        "scenario": {"f0": f0, "v0": v0, "K_liab": K_liab, "T_liab": T_liab, "T_bench": T_bench, "n_steps": n_steps, "n_paths": n_paths},
+        "scenario": {"f0": f0, "v0": v0, "K_liab": K_liab, "T_liab": T_liab, "T_b1": T_b1, "T_b2": T_b2, "n_steps": n_steps, "n_paths": n_paths},
         "mc_checks": {
             "exact_c0": c0_exact,
             "mc_payoff_mean": float(np.mean(payoff_T)),
@@ -332,25 +317,28 @@ def run_hedging_scenario(p_tup, models, f0=100.0, v0=0.01, T_liab=0.05, T_bench=
 
 
 def plot_hedging(res_low, dgv_low, res_mod):
-    fig, axes = plt.subplots(1, 3, figsize=(15.6, 4.8))
+    fig, axes = plt.subplots(1, 3, figsize=(16.2, 4.9), gridspec_kw={"wspace": 0.28})
     order = ["B0", "M1", "M2_zv_lw", "M3_param_plus", "M3_rar_80", "Exact Fourier"]
     colors = {
         "B0": "#d62728", "M1": "#1f77b4", "M2_zv_lw": "#ff7f0e",
         "M3_param_plus": "#9467bd", "M3_rar_80": "#2ca02c", "Exact Fourier": "#222222",
     }
 
-    # Panel 1: PnL density histogram on low-variance P2 (v0=0.01) for Delta-Gamma-Vega hedge
+    # Panel 1: Interior PnL density histogram on low-variance P2 (v0=0.01) without edge pile-up
     ax = axes[0]
-    bins = np.linspace(-0.8, 0.8, 81)
+    bins = np.linspace(-0.45, 0.45, 73)
     for k in ("B0", "M1", "M3_rar_80", "Exact Fourier"):
         ls = "--" if k == "Exact Fourier" else "-"
         lw = 2.2 if k in ("M3_rar_80", "Exact Fourier") else 1.6
-        ax.hist(np.clip(dgv_low[k], -0.8, 0.8), bins=bins, density=True, histtype="step", lw=lw, ls=ls, color=colors[k], label=k)
-    ax.set_xlabel("Terminal Hedging PnL ($ on $100 notional)")
-    ax.set_ylabel("Empirical Density")
-    ax.set_title("Delta-Gamma-Vega PnL Distribution ($v_0=0.01, T=0.05$)")
+        arr = dgv_low[k]
+        sub = arr[(arr >= -0.45) & (arr <= 0.45)]
+        weights = np.full(len(sub), 1.0 / (len(arr) * (bins[1] - bins[0])))
+        ax.hist(sub, bins=bins, weights=weights, histtype="step", lw=lw, ls=ls, color=colors[k], label=k)
+    ax.set_xlabel("Terminal Hedging PnL (USD per 100 Notional)")
+    ax.set_ylabel("Empirical Probability Density")
+    ax.set_title("DGV PnL Density ($v_0=0.01, T=0.05$)", fontsize=10.8)
     ax.grid(alpha=0.25)
-    ax.legend(fontsize=8.2, frameon=True)
+    ax.legend(fontsize=8.2, frameon=True, loc="upper right")
 
     # Panel 2: Low-variance (v0=0.01) Delta vs Delta-Gamma-Vega RMSE comparison
     ax2 = axes[1]
@@ -362,25 +350,25 @@ def plot_hedging(res_low, dgv_low, res_mod):
     ax2.bar(x + 0.5 * w, dgv_vals, width=w, color=[colors[k] for k in order], alpha=0.92, label="Delta-Gamma-Vega Hedge")
     ax2.set_xticks(x)
     ax2.set_xticklabels(order, rotation=22, ha="right", fontsize=8.8)
-    ax2.set_ylabel("Replication PnL RMSE ($)")
-    ax2.set_title("Low-Variance Corner ($v_0=0.01, T=0.05$): Hedge RMSE")
+    ax2.set_ylabel("Replication PnL RMSE (USD)")
+    ax2.set_title("Low Variance ($v_0=0.01$): Hedge RMSE", fontsize=10.8)
     ax2.grid(axis="y", alpha=0.25)
-    ax2.legend(fontsize=8.5, frameon=True)
+    ax2.legend(fontsize=8.3, frameon=True, loc="upper right")
 
-    # Panel 3: Moderate-variance (v0=0.04) Delta vs Delta-Gamma-Vega + CVaR_95
+    # Panel 3: Moderate-variance (v0=0.04) Delta vs Delta-Gamma-Vega RMSE
     ax3 = axes[2]
+    d_m = [res_mod["delta_hedge"][k]["rmse_pnl"] for k in order]
     dgv_m = [res_mod["dgv_hedge"][k]["rmse_pnl"] for k in order]
-    cvar_m = [res_mod["dgv_hedge"][k]["cvar_95_loss"] for k in order]
-    ax3.bar(x - 0.5 * w, dgv_m, width=w, color="#1f77b4", alpha=0.88, label="DGV PnL RMSE ($)")
-    ax3.bar(x + 0.5 * w, cvar_m, width=w, color="#d62728", alpha=0.82, label="DGV 95% CVaR Loss ($)")
+    ax3.bar(x - 0.5 * w, d_m, width=w, color="#7f7f7f", alpha=0.75, label="Delta-Only Hedge")
+    ax3.bar(x + 0.5 * w, dgv_m, width=w, color=[colors[k] for k in order], alpha=0.92, label="Delta-Gamma-Vega Hedge")
     ax3.set_xticks(x)
     ax3.set_xticklabels(order, rotation=22, ha="right", fontsize=8.8)
-    ax3.set_ylabel("Dollars ($ per $100 ATM Call)")
-    ax3.set_title("Moderate Variance ($v_0=0.04, T=0.05$): RMSE & Tail Risk")
+    ax3.set_ylabel("Replication PnL RMSE (USD)")
+    ax3.set_title("Moderate Variance ($v_0=0.04$): Hedge RMSE", fontsize=10.8)
     ax3.grid(axis="y", alpha=0.25)
-    ax3.legend(fontsize=8.5, frameon=True)
+    ax3.legend(fontsize=8.3, frameon=True, loc="upper right")
 
-    fig.suptitle("Economic Value of Second-Order Greek Accuracy: Discrete Hedging Under Feller-Violated Heston (P2)", fontsize=12.2)
+    fig.suptitle("Economic Value of Second-Order Greek Accuracy: Discrete Hedging Under Feller-Violated Heston (P2)", fontsize=12.0, y=1.02)
     out = os.path.join("paper", "fig13_dynamic_hedging_pnl.png")
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)

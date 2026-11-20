@@ -247,7 +247,33 @@ M3_CONFIGS = {
         "n_lbfgs_base": 16384, "rar_pool": 49152, "rar_add": 4096,
         "arb_gam_w": 1e-4, "arb_flr_w": 10.0,
     },
+    "M3_sech_80": {
+        "width": 80, "depth": 4, "act": "tanh", "extra_scales": True, "z2": False, "sech_alpha": 0.35,
+        "z_frac": 0.60, "z_max": 5.0, "vp": 2.5, "tp": 2.2, "lowv_weight": True,
+        "adam_steps": 4000, "lbfgs_rounds": 3, "lbfgs_per_round": 1200, "history_size": 100,
+        "n_lbfgs_base": 16384, "rar_pool": 49152, "rar_add": 4096,
+        "arb_gam_w": 0.0, "arb_flr_w": 0.0,
+    },
 }
+
+
+def _make_m3_u(net, p_or_td, dom, cfg, is_td=False):
+    base_u = t2.make_correction_tier2(
+        net, p_or_td, dom, kind="expected", use_z=True,
+        extra_scales=cfg.get("extra_scales", True), z2=cfg.get("z2", False), is_td=is_td,
+    )
+    sa = float(cfg.get("sech_alpha", 0.0))
+    if sa <= 0.0:
+        return base_u
+
+    def u_env(x, v, tau):
+        w_raw = tdmod.total_variance_td(v, tau, p_or_td, "expected") if is_td else cvpinn.total_variance(v, tau, p_or_td, "expected")
+        z = x / torch.sqrt(torch.clamp(w_raw, min=1e-30))
+        # Clamp |sa * z| <= 40 to prevent cosh overflow while vanishing smoothly in far wings
+        env = 1.0 / torch.cosh(torch.clamp(sa * z, -40.0, 40.0))
+        return env * base_u(x, v, tau)
+
+    return u_env
 
 
 def build_m3_net(cfg):
@@ -257,10 +283,7 @@ def build_m3_net(cfg):
 
 def make_m3_price_from_net(cfg, net, p_or_td, v_max=0.5, is_td=False):
     dom = cvpinn.Domain(v_max=v_max)
-    u = t2.make_correction_tier2(
-        net, p_or_td, dom, kind="expected", use_z=True,
-        extra_scales=cfg.get("extra_scales", True), z2=cfg.get("z2", False), is_td=is_td,
-    )
+    u = _make_m3_u(net, p_or_td, dom, cfg, is_td=is_td)
     return tdmod.make_price_td(u, p_or_td, kind="expected") if is_td else cvpinn.make_price(u, p_or_td, "expected")
 
 
@@ -275,10 +298,7 @@ def train_m3(arm_name, p_or_td, seed, x_grid_eval=None, ref_eval=None,
     gen = torch.Generator().manual_seed(seed)
     dom = cvpinn.Domain(v_max=v_max)
     net = build_m3_net(cfg).to(device)
-    u = t2.make_correction_tier2(
-        net, p_or_td, dom, kind="expected", use_z=True,
-        extra_scales=cfg["extra_scales"], z2=cfg["z2"], is_td=is_td,
-    )
+    u = _make_m3_u(net, p_or_td, dom, cfg, is_td=is_td)
     price_fn = tdmod.make_price_td(u, p_or_td, kind="expected") if is_td else cvpinn.make_price(u, p_or_td, "expected")
 
     n_col = 2048

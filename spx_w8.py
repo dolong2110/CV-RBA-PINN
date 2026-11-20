@@ -50,6 +50,9 @@ def _parse_dt(val):
         "%Y/%m/%d",
         "%m/%d/%Y",
         "%Y%m%d",
+        "%a %b %d %Y",
+        "%b %d %Y",
+        "%B %d, %Y",
     ):
         try:
             return datetime.strptime(val, fmt)
@@ -59,20 +62,94 @@ def _parse_dt(val):
 
 
 def _col(row, *candidates):
-    lower = {k.strip().lower(): v for k, v in row.items()}
+    lower = {k.strip().strip("[]").lower(): v for k, v in row.items() if k is not None}
     for c in candidates:
         if c in lower and lower[c] != "":
             return lower[c].strip()
     return None
 
 
-def load_spx_csv(csv_path, default_quote_time="14:30:00", strike_scale=None):
-    """Loads OptionMetrics / DataShop / broker SPX/SPXW CSV into normalized QuoteRow records."""
-    rows = []
-    with open(csv_path, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        raw_rows = list(reader)
+def _series_and_settle(exp_dt_d, root_raw="", am_raw=None):
+    root_u = (root_raw or "").upper()
+    if "SPXW" in root_u or (am_raw is not None and am_raw.upper() in ("0", "PM", "P")):
+        return "SPXW", dt_time(16, 0, 0)
+    if "SPX" in root_u or (am_raw is not None and am_raw.upper() in ("1", "AM", "A")):
+        return "SPX", dt_time(9, 30, 0)
+    is_third_fri = (exp_dt_d.weekday() == 4) and (15 <= exp_dt_d.day <= 21)
+    return ("SPX", dt_time(9, 30, 0)) if is_third_fri else ("SPXW", dt_time(16, 0, 0))
 
+
+def load_spx_csv(csv_path, default_quote_time="14:30:00", strike_scale=None):
+    """Loads WRDS OptionMetrics, Cboe DataShop, Cboe Quote-Table CSV, or OptionsDX CSV."""
+    with open(csv_path, newline="", encoding="utf-8-sig") as f:
+        all_lines = list(csv.reader(f))
+    if not all_lines:
+        return []
+
+    # Detect Cboe quote-table browser "Download CSV" format (preamble lines before "Expiration Date,Calls,...")
+    cboe_hdr_idx = None
+    for idx, line in enumerate(all_lines[:10]):
+        joined = ",".join(c.strip().lower() for c in line)
+        if "expiration date" in joined and "calls" in joined and "puts" in joined and "strike" in joined:
+            cboe_hdr_idx = idx
+            break
+
+    if cboe_hdr_idx is not None:
+        # Try extracting quote date from preamble lines (else file mtime date in ET)
+        q_dt = None
+        import re
+        for pline in all_lines[:cboe_hdr_idx]:
+            ptxt = " ".join(pline)
+            m = re.search(r"([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4})", ptxt)
+            if m:
+                try:
+                    d0 = _parse_dt(m.group(1).replace(",", ""))
+                    tm = re.search(r"(\d{1,2}):(\d{2})", ptxt)
+                    hh, mm = (int(tm.group(1)), int(tm.group(2))) if tm else (14, 30)
+                    ptxt_l = ptxt.lower()
+                    if "pm" in ptxt_l and hh < 12:
+                        hh += 12
+                    elif "am" in ptxt_l and hh == 12:
+                        hh = 0
+                    if "gmt+0" in ptxt_l or "utc" in ptxt_l:
+                        q_dt = d0.replace(hour=hh, minute=mm, second=0, tzinfo=ZoneInfo("UTC")).astimezone(ET)
+                    else:
+                        q_dt = d0.replace(hour=hh, minute=mm, second=0, tzinfo=ET)
+                    break
+                except ValueError:
+                    pass
+        if q_dt is None:
+            mt = datetime.fromtimestamp(os.path.getmtime(csv_path), tz=ET)
+            q_dt = mt.replace(hour=14, minute=30, second=0, microsecond=0)
+
+        hdr = [c.strip().lower() for c in all_lines[cboe_hdr_idx]]
+        exp_i = hdr.index("expiration date")
+        call_sym_i = hdr.index("calls")
+        strike_i = hdr.index("strike")
+        put_sym_i = hdr.index("puts")
+        c_bid_i = hdr.index("bid", call_sym_i, strike_i)
+        c_ask_i = hdr.index("ask", call_sym_i, strike_i)
+        p_bid_i = hdr.index("bid", put_sym_i)
+        p_ask_i = hdr.index("ask", put_sym_i)
+
+        rows = []
+        for r in all_lines[cboe_hdr_idx + 1:]:
+            if len(r) <= max(p_bid_i, p_ask_i) or not r[exp_i].strip() or not r[strike_i].strip():
+                continue
+            exp_dt_d = _parse_dt(r[exp_i]).date()
+            strike = float(r[strike_i]) * (strike_scale or 1.0)
+            for cp, sym_i, bi, ai in (("C", call_sym_i, c_bid_i, c_ask_i), ("P", put_sym_i, p_bid_i, p_ask_i)):
+                if r[bi].strip() == "" or r[ai].strip() == "":
+                    continue
+                series, settle_t = _series_and_settle(exp_dt_d, root_raw=r[sym_i])
+                exp_dt = datetime.combine(exp_dt_d, settle_t, tzinfo=ET)
+                tau = (exp_dt - q_dt).total_seconds() / (365.25 * 86400.0)
+                if 0.02 <= tau <= 2.0:
+                    rows.append(QuoteRow(q_dt, exp_dt, series, cp, strike, float(r[bi]), float(r[ai]), tau))
+        return rows
+
+    with open(csv_path, newline="", encoding="utf-8-sig") as f:
+        raw_rows = list(csv.DictReader(f))
     if not raw_rows:
         return []
 
@@ -85,48 +162,51 @@ def load_spx_csv(csv_path, default_quote_time="14:30:00", strike_scale=None):
                 sample_strikes.append(float(s))
         strike_scale = 0.001 if (sample_strikes and np.median(sample_strikes) > 50000.0) else 1.0
 
+    rows = []
     for r in raw_rows:
-        q_raw = _col(r, "quote_datetime", "quote_date", "date", "timestamp")
-        exp_raw = _col(r, "expiration", "exdate", "expiry", "maturity_date")
-        cp_raw = _col(r, "cp_flag", "option_type", "type", "call_put", "right")
+        und_sym = (_col(r, "underlying_symbol", "underlying") or "").upper()
+        if und_sym and ("SPX" not in und_sym):
+            continue
+        q_raw = _col(r, "quote_datetime", "quote_date", "date", "timestamp", "quote_readtime")
+        exp_raw = _col(r, "expiration", "exdate", "expiry", "maturity_date", "expire_date")
         k_raw = _col(r, "strike", "strike_price", "k")
-        b_raw = _col(r, "bid", "best_bid", "bid_price")
-        a_raw = _col(r, "ask", "best_offer", "ask_price", "offer")
-        if None in (q_raw, exp_raw, cp_raw, k_raw, b_raw, a_raw):
+        if None in (q_raw, exp_raw, k_raw):
             continue
 
-        cp = cp_raw.upper()[0]
-        if cp not in ("C", "P"):
-            continue
-        strike = float(k_raw) * strike_scale
-        bid = float(b_raw)
-        ask = float(a_raw)
-
+        has_1545 = _col(r, "bid_1545") is not None
         q_dt = _parse_dt(q_raw)
         if q_dt.hour == 0 and q_dt.minute == 0 and q_dt.second == 0 and " " not in q_raw and "T" not in q_raw:
-            hh, mm, ss = (int(x) for x in default_quote_time.split(":"))
+            t_def = "15:45:00" if has_1545 else default_quote_time
+            hh, mm, ss = (int(x) for x in t_def.split(":"))
             q_dt = q_dt.replace(hour=hh, minute=mm, second=ss)
         q_dt = q_dt.replace(tzinfo=ET)
 
         exp_dt_d = _parse_dt(exp_raw).date()
-        root_raw = (_col(r, "root", "symbol", "option_symbol", "ticker") or "").upper()
+        root_raw = _col(r, "root", "symbol", "option_symbol", "ticker") or ""
         am_raw = _col(r, "am_settlement", "settlement_type", "settle")
-        if "SPXW" in root_raw or (am_raw is not None and am_raw.upper() in ("0", "PM", "P")):
-            series = "SPXW"
-            settle_t = dt_time(16, 0, 0)
-        elif "SPX" in root_raw or (am_raw is not None and am_raw.upper() in ("1", "AM", "A")):
-            series = "SPX"
-            settle_t = dt_time(9, 30, 0)
-        else:
-            # Default third-Friday AM assumption if unmarked, else SPXW
-            is_third_fri = (exp_dt_d.weekday() == 4) and (15 <= exp_dt_d.day <= 21)
-            series = "SPX" if is_third_fri else "SPXW"
-            settle_t = dt_time(9, 30, 0) if series == "SPX" else dt_time(16, 0, 0)
-
+        series, settle_t = _series_and_settle(exp_dt_d, root_raw=root_raw, am_raw=am_raw)
         exp_dt = datetime.combine(exp_dt_d, settle_t, tzinfo=ET)
         tau = (exp_dt - q_dt).total_seconds() / (365.25 * 86400.0)
-        if 0.02 <= tau <= 2.0:
-            rows.append(QuoteRow(q_dt, exp_dt, series, cp, strike, bid, ask, tau))
+        if not (0.02 <= tau <= 2.0):
+            continue
+        strike = float(k_raw) * strike_scale
+
+        # Check OptionsDX side-by-side C_BID/C_ASK + P_BID/P_ASK format first
+        cb, ca = _col(r, "c_bid", "call_bid"), _col(r, "c_ask", "call_ask")
+        pb, pa = _col(r, "p_bid", "put_bid"), _col(r, "p_ask", "put_ask")
+        if cb is not None and ca is not None and pb is not None and pa is not None:
+            rows.append(QuoteRow(q_dt, exp_dt, series, "C", strike, float(cb), float(ca), tau))
+            rows.append(QuoteRow(q_dt, exp_dt, series, "P", strike, float(pb), float(pa), tau))
+            continue
+
+        cp_raw = _col(r, "cp_flag", "option_type", "type", "call_put", "right")
+        b_raw = _col(r, "bid_1545", "bid", "best_bid", "bid_price", "bid_eod")
+        a_raw = _col(r, "ask_1545", "ask", "best_offer", "ask_price", "offer", "ask_eod")
+        if None in (cp_raw, b_raw, a_raw):
+            continue
+        cp = cp_raw.upper()[0]
+        if cp in ("C", "P"):
+            rows.append(QuoteRow(q_dt, exp_dt, series, cp, strike, float(b_raw), float(a_raw), tau))
     return rows
 
 
@@ -316,10 +396,11 @@ def _group_quotes(quotes):
     return slice_data, np.array(ys, dtype=np.float64), w_arr
 
 
-def calibrate_day1(quotes, popsize=8, maxiter=40, seed=0):
+def calibrate_day1(quotes, popsize=8, maxiter=40, seed=0, bounds=None):
     """Fits (kappa, theta, xi, rho, v0(t1)) by inverse-spread-weighted normalized price MSE."""
     slice_data, y_mkt, w = _group_quotes(quotes)
-    bounds = [(0.2, 10.0), (0.005, 0.25), (0.05, 1.5), (-0.98, -0.05), (0.002, 0.25)]
+    if bounds is None:
+        bounds = [(0.2, 10.0), (0.005, 0.25), (0.05, 1.5), (-0.98, -0.05), (0.002, 0.25)]
 
     def obj(vec):
         kappa, theta, xi, rho, v0 = vec
@@ -345,7 +426,7 @@ def calibrate_day1(quotes, popsize=8, maxiter=40, seed=0):
     }
 
 
-def recalibrate_day2_v0(quotes_t2, struct_params, pinn_price_fn=None):
+def recalibrate_day2_v0(quotes_t2, struct_params, pinn_price_fn=None, v0_max=0.40):
     """Step 5b: Freeze (kappa*, theta*, xi*, rho*) and solve 1D Brent for v0(t2)."""
     slice_data, y_mkt, w = _group_quotes(quotes_t2)
     kappa, theta, xi, rho = (
@@ -359,7 +440,7 @@ def recalibrate_day2_v0(quotes_t2, struct_params, pinn_price_fn=None):
         pred = heston_prices_by_slice(slice_data, v0, kappa, theta, xi, rho)
         return float(np.mean(w * (pred - y_mkt) ** 2))
 
-    opt = minimize_scalar(obj_v0, bounds=(0.001, 0.40), method="bounded")
+    opt = minimize_scalar(obj_v0, bounds=(0.001, v0_max), method="bounded")
     v0_t2 = float(opt.x)
     c_fourier = heston_prices_by_slice(slice_data, v0_t2, kappa, theta, xi, rho)
     out = {
@@ -385,22 +466,56 @@ def recalibrate_day2_v0(quotes_t2, struct_params, pinn_price_fn=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--t1", required=True)
-    parser.add_argument("--t2", required=True)
+    parser.add_argument("--t1", default=None, help="Day-1 SPX/SPXW CSV path")
+    parser.add_argument("--t2", default=None, help="Day-2 SPX/SPXW CSV path")
+    parser.add_argument("--combined-csv", default=None, help="Single multi-day WRDS/OptionsDX CSV (auto-splits first 2 dates)")
     parser.add_argument("--out", default="runs/w8_spx_report.json")
     parser.add_argument("--train-pinn", action="store_true")
     parser.add_argument("--arm", default="M2_zv_lw", choices=("M1", "M2_zv_lw"))
     parser.add_argument("--param-ckpt", default=None)
+    parser.add_argument("--diff-cal", action="store_true", help="Use millisecond PyTorch autograd calibration via 10D M3_param_plus")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--strike-scale", type=float, default=None)
     args = parser.parse_args()
 
-    r1 = load_spx_csv(args.t1, strike_scale=args.strike_scale)
-    r2 = load_spx_csv(args.t2, strike_scale=args.strike_scale)
+    if args.combined_csv:
+        all_r = load_spx_csv(args.combined_csv, strike_scale=args.strike_scale)
+        dates = sorted({r.quote_dt.date() for r in all_r})
+        if len(dates) < 2:
+            raise SystemExit(f"--combined-csv requires >= 2 distinct quote dates; found {dates}")
+        r1 = [r for r in all_r if r.quote_dt.date() == dates[0]]
+        r2 = [r for r in all_r if r.quote_dt.date() == dates[1]]
+    elif args.t1 and args.t2:
+        r1 = load_spx_csv(args.t1, strike_scale=args.strike_scale)
+        r2 = load_spx_csv(args.t2, strike_scale=args.strike_scale)
+    else:
+        raise SystemExit("Provide either --t1 and --t2, or --combined-csv.")
     sl1, q1 = process_chain_parity_and_quotes(r1)
     sl2, q2 = process_chain_parity_and_quotes(r2)
     if not sl1 or not sl2:
         raise SystemExit("Insufficient clean parity slices (require R^2 >= 0.999 and >= 8 paired strikes).")
+
+    if args.diff_cal:
+        import diff_calibrate as dc
+        wide_ckpt = os.path.join("runs", "param", "checkpoints", "M3_param_wide_seed0.pt")
+        ckpt_use = args.param_ckpt or (wide_ckpt if os.path.exists(wide_ckpt) else dc.DEFAULT_PARAM_CKPT)
+        preloaded = dc.load_surrogate(ckpt_use)
+        cal1 = dc.calibrate_day1_differentiable(q1, preloaded=preloaded, seed=args.seed)
+        cal2 = dc.recalibrate_day2_differentiable(q2, cal1, preloaded=preloaded)
+        out_dir = os.path.dirname(args.out)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        report = {
+            "t1_slices": [{"expiry": s["expiry"], "series": s["series"], "tau": s["tau"], "D": s["D"], "F": s["F"], "r2": s["r2"]} for s in sl1],
+            "t2_slices": [{"expiry": s["expiry"], "series": s["series"], "tau": s["tau"], "D": s["D"], "F": s["F"], "r2": s["r2"]} for s in sl2],
+            "calibration_mode": "neural_autograd",
+            "day1_calibration": cal1,
+            "day2_recalibration": cal2,
+        }
+        with open(args.out, "w") as f:
+            json.dump(report, f, indent=2)
+        print(f"W8 differentiable SPX report saved -> {args.out}")
+        return
 
     cal1 = calibrate_day1(q1)
     pinn_fn = None
@@ -411,7 +526,7 @@ def main():
         ckpt = torch.load(args.param_ckpt, map_location="cpu", weights_only=True)
         dom, box = cvpinn.Domain(v_max=0.5), cp8.ParamBox()
         p_cal = cvpinn.Heston(cal1["kappa"], cal1["theta"], cal1["xi"], cal1["rho"])
-        if ckpt["arm"] == "B0_param":
+        if ckpt.get("arm") == "B0_param":
             net = cvpinn.Mlp(7, width=int(ckpt["width"]), depth=4)
             net.load_state_dict(ckpt["state_dict"])
             net.eval()
@@ -420,7 +535,7 @@ def main():
                 p_cal,
             )
         else:
-            extra = ckpt["arm"] == "M_param_plus"
+            extra = ("plus" in ckpt.get("arm", "")) or ("plus" in ckpt.get("upgraded_arm", ""))
             net = cvpinn.Mlp(8 + (2 if extra else 0), width=int(ckpt["width"]), depth=4)
             net.load_state_dict(ckpt["state_dict"])
             net.eval()

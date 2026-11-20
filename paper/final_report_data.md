@@ -17,6 +17,8 @@
 | ADI Oracle vs Chained Riccati PWC (`c` / `gam` / `cxv`) | `7.149e-06` / `6.508e-04` / `1.762e-03` | Verified |
 | ADI Grid Refinement Med vs Fine `800x400, 2700t` (`c` / `gam` / `cxv`) | `3.634e-06` / `5.263e-04` / `1.205e-03` | Converged |
 | Gate `G2_param` (`expected` / `spot`) & `G3_param` (8D Box) | `2.549e-13` / `4.120e-13` & `0.000e+00` | `<= 1e-6`, `== 0.0` |
+| Gate `G2_slv` & `G3_slv` (Non-Affine Heston-SLV) | `3.324e-15` & `0.000e+00` | `<= 1e-6`, `== 0.0` |
+| SLV ADI Med vs Fine `800x400, 2700t` (`c` / `gam` / `cxv` / `cv`) | `3.299e-06` / `5.413e-04` / `1.240e-03` / `8.223e-05` | Converged |
 
 ## 2. Headline Model Progression (`B0` -> `M1` -> `M2_zv_lw` -> `M3_rar_80`)
 
@@ -55,6 +57,7 @@
 | `A2b` | `12.2` | `96.0` | `-5.684e-01` | `98.6` | `0.226` / `1.050` / `2.778` | `0.481` / `2.405` / `6.165` |
 | `M2_zv_lw` | `4.6` | `78.4` | `-1.692e-01` | `107.4` | `0.166` / `0.771` / `1.953` | `0.283` / `1.288` / `3.460` |
 | `M3_rar_80` | `0.0` | `51.3` | `-1.011e-01` | `72.0` | `0.067` / `0.312` / `0.754` | `0.122` / `0.549` / `1.711` |
+| `M3_sech_80` | `0.0` | `58.0` | `-1.437e-01` | `38.0` | `0.043` / `0.194` / `0.435` | `0.083` / `0.397` / `1.095` |
 | `M3_rar_112` | `0.0` | `35.0` | `-7.707e-02` | `73.0` | `0.058` / `0.249` / `0.755` | `0.107` / `0.520` / `1.362` |
 | `M3_rar_112_arb` | `0.0` | `39.0` | `-7.857e-03` | `32.0` | `0.095` / `0.468` / `1.012` | `0.182` / `0.855` / `2.527` |
 | `M3_rar_112_silu` | `0.0` | `45.0` | `-1.177e-01` | `18.0` | `0.058` / `0.232` / `0.613` | `0.094` / `0.396` / `0.962` |
@@ -134,7 +137,80 @@
 | `P4_calm` | `M3_param` | `0.0009` | `0.0126` | `0.0269` | `0.0197` | `0.0842` | `0.0129` | `11.21` |
 | `P4_calm` | `M3_param_plus` | `0.0011` | `0.0136` | `0.0247` | `0.0236` | `0.1167` | `0.0139` | `9.79` |
 
-## 6. Complete Publication Figure Index
+## 6. Non-Affine 2D Heston Stochastic-Local Volatility (`Heston-SLV`) Benchmark
+
+| Arm | Train (s) | Infer (ms) | Overall `c` | Overall `cx` | Overall **Gamma** | Overall **Vanna** | Overall **Vega** | Overall **Volga** | `short_low_var` **Gamma** | Core Neg. Gamma / Floor Viol. |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `B0_slv` | `560` | `8.94` | `0.0304` | `0.1321` | `0.7409` | `0.9835` | `0.5932` | `0.9989` | `0.7866` | `18` / `160` |
+| `M3_slv` | `1997` | `9.87` | `0.0003` | `0.0014` | `0.0163` | `0.0345` | `0.0150` | `0.1286` | `0.0153` | `0` / `29` |
+
+## 7. Dynamic Delta & Delta-Gamma-Vega Hedging Backtest (`P2`, 15,000 Exact CIR Paths)
+
+| Scenario | Hedge Engine | Delta-Only RMSE ($) | DGV RMSE ($) | DGV 95% CVaR Loss ($) | DGV Tracking RMSE vs Exact ($) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Low Var ($v_0=0.01, T=0.05$) | `Exact Fourier` | `0.3343` | `0.0509` | `0.1248` | `0.0000` |
+| Low Var ($v_0=0.01, T=0.05$) | `M3_rar_80` | `0.3339` | `0.0515` | `0.1235` | `0.0116` |
+| Low Var ($v_0=0.01, T=0.05$) | `M3_param_plus` | `0.3332` | `0.0516` | `0.1212` | `0.0192` |
+| Low Var ($v_0=0.01, T=0.05$) | `M2_zv_lw` | `0.3262` | `0.0520` | `0.1183` | `0.0263` |
+| Low Var ($v_0=0.01, T=0.05$) | `M1` | `0.3246` | `0.0605` | `0.1365` | `0.0421` |
+| Low Var ($v_0=0.01, T=0.05$) | `B0` | `0.5605` | `0.2856` | `0.2989` | `0.2864` |
+| Mod Var ($v_0=0.04, T=0.05$) | `Exact Fourier` | `0.4218` | `0.0684` | `0.1505` | `0.0000` |
+| Mod Var ($v_0=0.04, T=0.05$) | `M3_rar_80` | `0.4226` | `0.0691` | `0.1546` | `0.0089` |
+| Mod Var ($v_0=0.04, T=0.05$) | `M3_param_plus` | `0.4226` | `0.0686` | `0.1443` | `0.0111` |
+| Mod Var ($v_0=0.04, T=0.05$) | `M2_zv_lw` | `0.4220` | `0.0689` | `0.1463` | `0.0133` |
+| Mod Var ($v_0=0.04, T=0.05$) | `M1` | `0.4151` | `0.0707` | `0.1584` | `0.0188` |
+| Mod Var ($v_0=0.04, T=0.05$) | `B0` | `0.8091` | `0.4805` | `0.5444` | `0.4753` |
+
+## 8. Millisecond Differentiable Neural Calibration (`M3_param_plus` vs SciPy DE + Fourier)
+
+| Regime | Quotes ($t_1/t_2$) | DE+Fourier $t_1$ Time (ms) | Neural Autograd $t_1$ Time (ms) | Speedup | DE Day-2 Fit RMSE (bps) | Neural Day-2 Fit RMSE (bps) | Surrogate vs Fourier $t_2$ (bps) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `P1_FellerOK` | `77/80` | `7088` | `256` | **`27.7x`** | `3.73` | `4.96` | `3.60` |
+| `P2_FellerBad` | `79/82` | `9795` | `230` | **`42.5x`** | `1.88` | `3.07` | `2.93` |
+| `P3_SteepSkew` | `79/76` | `15310` | `221` | **`69.2x`** | `2.08` | `4.37` | `3.00` |
+
+## 9. Live Cboe SPX / SPXW Empirical Market Validation (`Nov 19, 2026`, `^SPX = 7,205.56`)
+
+| Expiry | Series | $\tau$ (yrs) | Discount $D(\tau)$ | Forward $F(\tau)$ | Implied $r$ (%) | Parity $R^2$ | Split |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `2026-12-18` | `SPX` | `0.0788` | `0.99623` | `7225.12` | `4.79` | `0.9999999` | In-Sample Cal |
+| `2027-01-15` | `SPX` | `0.1555` | `0.99246` | `7250.72` | `4.87` | `0.9999999` | Held-Out Test |
+| `2027-02-19` | `SPX` | `0.2513` | `0.98782` | `7276.49` | `4.88` | `0.9999999` | In-Sample Cal |
+| `2027-03-19` | `SPX` | `0.3280` | `0.98413` | `7295.32` | `4.88` | `0.9999999` | Held-Out Test |
+| `2027-06-17` | `SPX` | `0.5744` | `0.97193` | `7381.64` | `4.96` | `1.0000000` | In-Sample Cal |
+| `2027-06-30` | `SPXW` | `0.6107` | `0.97074` | `7390.71` | `4.86` | `0.9999995` | Held-Out Test |
+| `2027-12-17` | `SPX` | `1.0754` | `0.94675` | `7538.66` | `5.09` | `1.0000000` | In-Sample Cal |
+| `2028-01-21` | `SPX` | `1.1712` | `0.94173` | `7575.02` | `5.13` | `1.0000000` | In-Sample Cal |
+
+| Live SPX Model | 2,533-Quote PINN vs Fourier (bps) | 2,533-Quote PINN vs Market (bps) | `short_mod_var` Gamma | `short_mod_var` Vega | `short_mod_var` Vanna | Overall Gamma | Overall Vega |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `B0` | `108.38` | `108.82` | `0.5743` | `0.5797` | `0.9292` | `0.8199` | `0.5706` |
+| `M3_sech_80` | `1.58` | `7.62` | `0.0201` | `0.0113` | `0.0397` | `0.0617` | `0.0207` |
+
+### Multi-Year Historical SPX/SPXW Day-1 -> Day-2 Out-of-Sample Benchmark (`2023-2025`, `168` Days / `4.12M` Quotes)
+
+| Regime | Quotes ($t_1/t_2$) | $v_0^*(t_1) \to v_0^*(t_2)$ | DE $t_1$ (s) | Autograd $t_1$ (s) | Speedup | DE $t_2$ OOS (bps) | Autograd $t_2$ OOS (bps) | Surr vs Fourier $t_2$ (bps) |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `2024_Jun_CalmBull` | `1177/1243` | `0.0106 -> 0.0093` | `207.7` | `1.75` | **`118.9x`** | `6.48` | `6.67` | `3.05` |
+| `2024_Aug_YenCarrySpike` | `1316/1526` | `0.0784 -> 0.0634` | `110.6` | `1.93` | **`57.4x`** | `34.17` | `33.16` | `7.78` |
+| `2024_Nov_USElection` | `1600/1185` | `0.0256 -> 0.0196` | `145.7` | `2.19` | **`66.7x`** | `7.14` | `7.19` | `4.72` |
+| `2025_Mar_Q1Selloff` | `1438/1639` | `0.0791 -> 0.0736` | `124.0` | `1.97` | **`62.9x`** | `10.76` | `11.56` | `4.27` |
+
+- **168-Day Full-Archive Rolling Summary (`M3_param_wide`, `4.12M` Quotes)**: `168` days calibrated in `486.5s` (`1493ms`/day), Feller violated on **`168/168` (`100.0%`)** days, median In-Sample RMSE **`9.86 bps`**, median Next-Day OOS RMSE **`10.1 bps`**, median Surrogate-vs-Fourier **`3.98 bps`**.
+
+### 17-Year Wharton WRDS OptionMetrics IvyDB US Study (`2008-2025`, `434,763` Rows, `96,172` Held-Out OOS Quotes)
+
+| Era (Anchor) | Surrogate | OOS Quotes | DE $t_1$ (s) | Autograd $t_1$ (s) | Speedup | DE Week OOS (bps) | Autograd Week OOS (bps) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `2008_Oct_GFC` (`2008-10-14`) | `M3_param_crisis` | `598` | `9.0` | `0.37` | **`24.6x`** | `38.63` | `34.94` |
+| `2020_Mar_COVID_Crash` (`2020-03-16`) | `M3_param_crisis` | `9854` | `65.1` | `1.88` | **`34.6x`** | `53.46` | `68.48` |
+| `2021_Jul_LowVol_Bull` (`2021-07-12`) | `M3_param_wide` | `24509` | `305.0` | `2.63` | **`115.7x`** | `10.31` | `9.61` |
+| `2022_Oct_Inflation_Bear` (`2022-10-10`) | `M3_param_wide` | `27735` | `102.7` | `2.58` | **`39.7x`** | `14.31` | `15.13` |
+| `2025_Aug_Latest_IvyDB` (`2025-08-25`) | `M3_param_wide` | `33476` | `343.4` | `2.65` | **`129.4x`** | `9.03` | `9.21` |
+
+- **2020-03-16 COVID-19 All-Time VIX Peak (`VIX = 82.69`, `2,670` Quotes, $\sqrt{v_0^*} = 92.58\%$):** `M3_sech_80` vs Fourier **`57.36 bps`** (`5.5x` below `B0` `315.99 bps`); Feller violated on **`25/25` (`100.0%`)** WRDS trading days.
+
+## 10. Complete Publication Figure Index
 
 - [fig1_gamma_error_surface_p2.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig1_gamma_error_surface_p2.png): P2 Gamma Error Surface (`B0` vs `M1`)
 - [fig2_vanna_error_surface_p2.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig2_vanna_error_surface_p2.png): P2 Vanna Error Surface (`B0` vs `M1`)
@@ -147,4 +223,10 @@
 - [fig9_m3_convergence_trajectories.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig9_m3_convergence_trajectories.png): Multi-Round RAR-L-BFGS Optimization & Greek Convergence Dynamics (`M3`)
 - [fig10_m3_error_surfaces_p2_and_td.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig10_m3_error_surfaces_p2_and_td.png): Error Surface Collapse: `B0` vs `M1` vs Championship `M3_rar_80` on `P2` and `TD`
 - [fig11_hardest_slice_profiles.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig11_hardest_slice_profiles.png): Hardest Corner Slice (`P2`, $\tau=0.05, v=0.005$): Exact vs `B0` vs `M1` vs `M3_rar_80` (Gamma/Vanna/Vega/Volga)
-- [fig12_ablation_ladder_and_arbitrage.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig12_ablation_ladder_and_arbitrage.png): Full 8-Model Mechanistic Ablation Ladder & Financial Admissibility Audit (`P2`)
+- [fig12_ablation_ladder_and_arbitrage.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig12_ablation_ladder_and_arbitrage.png): Full Mechanistic Ablation Ladder & Financial Admissibility Audit (`P2`)
+- [fig13_dynamic_hedging_pnl.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig13_dynamic_hedging_pnl.png): Dynamic Delta & Delta-Gamma-Vega Hedging Replication PnL Backtest (`P2`, Exact CIR Paths)
+- [fig14_slv_benchmark.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig14_slv_benchmark.png): Non-Affine 2D Heston Stochastic-Local Volatility (`Heston-SLV`): `B0_slv` vs `M3_slv`
+- [fig15_diff_calibration.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig15_diff_calibration.png): Millisecond Differentiable Heston Calibration via 10D `M3_param_plus` vs SciPy DE + Fourier
+- [fig16_real_spx_market.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig16_real_spx_market.png): Live Cboe SPX / SPXW Empirical Market Validation (Parity Curve, Held-Out Smiles, & Stressed Greeks)
+- [fig17_spx_168day_rolling_calibration.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig17_spx_168day_rolling_calibration.png): Full-Archive 168-Trading-Day Rolling SPX Calibration & Next-Day OOS Backtest (`4.12M` Quotes, `M3_param_wide`)
+- [fig18_wrds_multidecade_study.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig18_wrds_multidecade_study.png): 17-Year Wharton WRDS OptionMetrics IvyDB US Multi-Decade SPX Validation (`2008-2025`, `434,763` Rows)
