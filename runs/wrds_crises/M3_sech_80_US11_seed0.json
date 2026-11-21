@@ -1,0 +1,26 @@
+{
+  "arm": "M3_sech_80",
+  "tag": "US11",
+  "date": "2011-08-08",
+  "train_sec": 418.72,
+  "lbfgs_post_loss": 0.00018307272637746908,
+  "overall": {
+    "c": 0.0067,
+    "cx": 0.01,
+    "gam": 0.1185,
+    "cv": 0.1095,
+    "cxv": 0.2734,
+    "cvv": 0.7161
+  },
+  "arbitrage": {
+    "neg_gam_count": 95,
+    "neg_gam_core_count": 9,
+    "min_gam": -1.586613555752366,
+    "floor_viol_count": 208,
+    "min_c_minus_payoff": -0.010293004259842142,
+    "delta_oob_count": 177,
+    "put_parity_max_err": 1.1102230246251565e-16
+  },
+  "vs_fourier_bps": 36.49,
+  "vs_mkt_bps": 47.68
+}

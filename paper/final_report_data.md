@@ -198,17 +198,21 @@
 
 - **168-Day Full-Archive Rolling Summary (`M3_param_wide`, `4.12M` Quotes)**: `168` days calibrated in `486.5s` (`1493ms`/day), Feller violated on **`168/168` (`100.0%`)** days, median In-Sample RMSE **`9.86 bps`**, median Next-Day OOS RMSE **`10.1 bps`**, median Surrogate-vs-Fourier **`3.98 bps`**.
 
-### 17-Year Wharton WRDS OptionMetrics IvyDB US Study (`2008-2025`, `434,763` Rows, `96,172` Held-Out OOS Quotes)
+### Quarter-Century Wharton WRDS OptionMetrics IvyDB US Study (`2000-2025`, `1,281,892` Rows, `78` Days, `113,063` Held-Out OOS Quotes)
 
 | Era (Anchor) | Surrogate | OOS Quotes | DE $t_1$ (s) | Autograd $t_1$ (s) | Speedup | DE Week OOS (bps) | Autograd Week OOS (bps) |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `2008_Oct_GFC` (`2008-10-14`) | `M3_param_crisis` | `598` | `9.0` | `0.37` | **`24.6x`** | `38.63` | `34.94` |
-| `2020_Mar_COVID_Crash` (`2020-03-16`) | `M3_param_crisis` | `9854` | `65.1` | `1.88` | **`34.6x`** | `53.46` | `68.48` |
-| `2021_Jul_LowVol_Bull` (`2021-07-12`) | `M3_param_wide` | `24509` | `305.0` | `2.63` | **`115.7x`** | `10.31` | `9.61` |
-| `2022_Oct_Inflation_Bear` (`2022-10-10`) | `M3_param_wide` | `27735` | `102.7` | `2.58` | **`39.7x`** | `14.31` | `15.13` |
-| `2025_Aug_Latest_IvyDB` (`2025-08-25`) | `M3_param_wide` | `33476` | `343.4` | `2.65` | **`129.4x`** | `9.03` | `9.21` |
+| `2000_Apr_DotCom` (`2000-04-10`) | `M3_param_wide` | `790` | `13.5` | `1.40` | **`9.6x`** | `17.15` | `19.44` |
+| `2008_Oct_GFC` (`2008-10-14`) | `M3_param_crisis_v2` | `598` | `9.0` | `0.43` | **`20.9x`** | `38.63` | `49.03` |
+| `2011_Aug_USDowngrade` (`2011-08-08`) | `M3_param_crisis_v2` | `1165` | `26.8` | `0.87` | **`30.8x`** | `27.72` | `31.77` |
+| `2015_Aug_FlashCrash` (`2015-08-24`) | `M3_param_wide` | `3682` | `37.3` | `1.00` | **`37.3x`** | `28.06` | `32.91` |
+| `2018_Feb_Volmageddon` (`2018-02-05`) | `M3_param_crisis_v2` | `11254` | `42.7` | `0.99` | **`43.3x`** | `26.17` | `32.14` |
+| `2020_Mar_COVID_FullMonth` (`2020-03-16`) | `M3_param_crisis_v2` | `9854` | `65.1` | `2.53` | **`25.8x`** | `53.46` | `51.32` |
+| `2021_Jul_LowVol_Bull` (`2021-07-12`) | `M3_param_wide` | `24509` | `305.0` | `2.67` | **`114.4x`** | `10.31` | `10.03` |
+| `2022_Oct_Inflation_Bear` (`2022-10-10`) | `M3_param_wide` | `27735` | `102.7` | `2.60` | **`39.4x`** | `14.31` | `17.96` |
+| `2025_Aug_Latest_FullMonth` (`2025-08-25`) | `M3_param_wide` | `33476` | `343.4` | `2.64` | **`130.1x`** | `9.03` | `9.25` |
 
-- **2020-03-16 COVID-19 All-Time VIX Peak (`VIX = 82.69`, `2,670` Quotes, $\sqrt{v_0^*} = 92.58\%$):** `M3_sech_80` vs Fourier **`57.36 bps`** (`5.5x` below `B0` `315.99 bps`); Feller violated on **`25/25` (`100.0%`)** WRDS trading days.
+- **4-Crisis Single-Surface PINNs & Full-Month Rolling:** `2000-04-14` Dot-Com `3.31` vs `83.91 bps` (`25.4x`), `2011-08-08` Downgrade `36.49` vs `108.44 bps` (`3.0x`), `2018-02-05` Volmageddon `12.44` vs `71.27 bps` (`5.7x`), and `2020-03-16` COVID-19 (`VIX = 82.69`, $\sqrt{v_0^*} = 92.58\%$) **`57.36 bps`** vs `315.99 bps` (`5.5x`); Feller violated on **`78/78` (`100.0%`)** WRDS trading days (`248/248` total SPX days `2000-2026`).
 
 ## 10. Complete Publication Figure Index
 
@@ -229,4 +233,5 @@
 - [fig15_diff_calibration.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig15_diff_calibration.png): Millisecond Differentiable Heston Calibration via 10D `M3_param_plus` vs SciPy DE + Fourier
 - [fig16_real_spx_market.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig16_real_spx_market.png): Live Cboe SPX / SPXW Empirical Market Validation (Parity Curve, Held-Out Smiles, & Stressed Greeks)
 - [fig17_spx_168day_rolling_calibration.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig17_spx_168day_rolling_calibration.png): Full-Archive 168-Trading-Day Rolling SPX Calibration & Next-Day OOS Backtest (`4.12M` Quotes, `M3_param_wide`)
-- [fig18_wrds_multidecade_study.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig18_wrds_multidecade_study.png): 17-Year Wharton WRDS OptionMetrics IvyDB US Multi-Decade SPX Validation (`2008-2025`, `434,763` Rows)
+- [fig18_wrds_multidecade_study.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig18_wrds_multidecade_study.png): Quarter-Century Wharton WRDS OptionMetrics IvyDB US 9-Era SPX Validation (`2000-2025`, `1.28M` Rows)
+- [fig19_wrds_march2020_aug2025_trajectories.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig19_wrds_march2020_aug2025_trajectories.png): Continuous Full-Month WRDS OptionMetrics Rolling Trajectories: March 2020 COVID-19 (`22d`) vs August 2025 (`21d`)

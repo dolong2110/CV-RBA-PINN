@@ -65,16 +65,15 @@ class TestExtensions(unittest.TestCase):
             exact_intr = torch.clamp(torch.exp(x0) - 1.0, min=0.0)
             self.assertLessEqual(float((c0 - exact_intr).abs().max().item()), 1e-15)
 
-        crisis_ckpt = os.path.join("runs", "param", "checkpoints", "M3_param_crisis_seed0.pt")
-        if os.path.exists(crisis_ckpt):
-            pfn_c, box_c = dc.load_surrogate(crisis_ckpt)
-            self.assertAlmostEqual(box_c.xi_max, 2.6, places=6)
-            self.assertAlmostEqual(getattr(pfn_c, "_v_max", 0.5), 1.0, places=6)
-            xc = torch.tensor([-0.3, 0.0, 0.3], dtype=torch.float64)
-            vc = torch.full_like(xc, 0.857)
-            tc = torch.zeros_like(xc)
-            cc0 = pfn_c(xc, vc, tc, torch.full_like(xc, 5.40), torch.full_like(xc, 0.156), torch.full_like(xc, 2.55), torch.full_like(xc, -0.92)).detach()
-            self.assertLessEqual(float((cc0 - torch.clamp(torch.exp(xc) - 1.0, min=0.0)).abs().max().item()), 1e-15)
+        crisis_v2_ckpt = os.path.join("runs", "param", "checkpoints", "M3_param_crisis_v2_seed0.pt")
+        if os.path.exists(crisis_v2_ckpt):
+            pfn_c2, box_c2 = dc.load_surrogate(crisis_v2_ckpt)
+            self.assertAlmostEqual(box_c2.xi_max, 2.9, places=6)
+            self.assertAlmostEqual(box_c2.rho_min, -0.98, places=6)
+            self.assertAlmostEqual(getattr(pfn_c2, "_v_max", 0.5), 1.0, places=6)
+            xc2 = torch.tensor([-0.3, 0.0, 0.3], dtype=torch.float64)
+            cc2 = pfn_c2(xc2, torch.full_like(xc2, 0.857), torch.zeros_like(xc2), torch.full_like(xc2, 5.40), torch.full_like(xc2, 0.156), torch.full_like(xc2, 2.80), torch.full_like(xc2, -0.97)).detach()
+            self.assertLessEqual(float((cc2 - torch.clamp(torch.exp(xc2) - 1.0, min=0.0)).abs().max().item()), 1e-15)
 
         exp_t1 = [
             ("2026-12-18", "SPX", 5900.0, 0.045, 0.013),

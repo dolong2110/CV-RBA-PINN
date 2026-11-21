@@ -28,7 +28,7 @@ where $b(x, w_{\mathrm{exp}})$ is the analytic Black–Scholes call evaluated at
 | **Dynamic $\Delta$–$\Gamma$–Vega Hedging** (`15,000` exact CIR paths, $v_0=0.01$) | `\$0.2856` PnL RMSE (`\$0.2864` tracking err) | **`M3_rar_80` `\$0.0515`** / **0-shot `M3_param_plus` `\$0.0516`** (Exact Fourier: `\$0.0509`) | Matches exact Fourier replication within **`0.06` cents** |
 | **Live Cboe SPX / SPXW** (`2026-11-19`, `2,533` quotes, $\xi^*=1.50$) | `108.38 bps` vs. Fourier (`82.0%` $\Gamma$) | **`M3_sech_80`**: **`1.58 bps` vs. Fourier** (`7.62 bps` vs. Cboe mid, `2.01%` $\Gamma_{\text{short,mod}}$) | **`68.8×` more accurate** on `4.9×` Feller-violated SPX |
 | **168-Day Rolling SPX Archive** (`4.12M` quotes, `2024–2025`) | DE+Fourier: `~6.8 hours` (`111–208 s`/day) | **`M3_param_wide`**: **`486.5 s` total (`1.49 s`/day)**, **`9.86 bps`** med IS, **`10.10 bps`** med OOS | **`57×–119×` faster**; **`168/168` days violate Feller** |
-| **17-Year Wharton WRDS OptionMetrics** (`2008–2025`, `434,763` rows, `96,172` OOS quotes) | DE+Fourier: up to `343.4 s`/day | **`M3_param_wide` + `M3_param_crisis`**: **`24.6×–129.4×` faster**, `9.21 bps` OOS (`2025`), `34.94 bps` OOS (`2008` GFC) | **`195/195` (`100%`) real SPX trading days (`2008–2026`) violate Feller** |
+| **Quarter-Century Wharton WRDS OptionMetrics** (`2000–2025`, `9` eras, `78` days, `1.28M` rows, `113,063` OOS quotes) | DE+Fourier: up to `343.4 s`/day; `B0` `71–316 bps` on crashes | **`M3_param_wide` + `M3_param_crisis_v2`**: **`10×–130×` faster** (`51.32` vs `53.46 bps` COVID OOS, `9.25` vs `9.03 bps` 2025 OOS); `M3_sech_80` **`3.31 bps`** (`2000`), **`12.44 bps`** (`2018` Volmageddon) | **`248/248` (`100%`) real SPX trading days (`2000–2026`, `5.44M+` quotes) violate Feller** |
 
 ---
 
@@ -42,9 +42,10 @@ where $b(x, w_{\mathrm{exp}})$ is the analytic Black–Scholes call evaluated at
 - **Hedging, Calibration & Empirical SPX Pipelines**:
   - `hedging_backtest.py` — Exact Broadie–Kaya CIR simulation & dynamic two-maturity $\Delta$–$\Gamma$–Vega replication backtest.
   - `diff_calibrate.py`, `spx_w8.py` — Millisecond batched PyTorch autograd + Strong-Wolfe `L-BFGS` Heston calibrator and Cboe / WRDS OptionMetrics / DataShop chain processor.
-  - `real_spx_study.py`, `wrds_optionmetrics_study.py` — Live Cboe `2026-11-19` study and 17-year (`2008–2025`) Wharton WRDS OptionMetrics IvyDB US crisis/bull/bear study.
-- **Manuscript, Figures & Logs**:
-  - `paper/main.tex`, `paper/references.bib`, `paper/fig1..fig18*.png` — Self-contained Overleaf LaTeX manuscript with `18` publication figures and `24` verified BibTeX references.
+  - `real_spx_study.py`, `wrds_optionmetrics_study.py`, `run_wrds_option2_training.py` — Live Cboe `2026-11-19` study and quarter-century (`2000–2025`, `9` eras, `78` days) Wharton WRDS OptionMetrics IvyDB US crisis/bull/bear study.
+- **Manuscript, Figures & Telemetry Logs**:
+  - `paper/main.tex`, `paper/references.bib`, `paper/fig1..fig19*.png` — Self-contained Overleaf LaTeX manuscript with `19` publication figures and `24` verified BibTeX references.
+  - `training_logger.py`, `paper/training_log.md`, `runs/training_history_log.jsonl` — Append-only master training telemetry registry (`33` logged checkpoints with loss trajectories, 6-Greek RMSEs, and market `bps` fit).
   - `paper/final_report_data.md`, `runs/final_report_log.json` — Master aggregated tables and JSON experiment logs.
   - `tests/` — `22` automated unit tests covering analytic PDE gates, Fourier/ADI parity, CIR martingale checks, and CLI calibration.
 

@@ -588,7 +588,7 @@ def render_final_report_md(log):
 
     wrds = log.get("wrds_optionmetrics", {})
     if wrds.get("era_benchmarks"):
-        lines.append("\n### 17-Year Wharton WRDS OptionMetrics IvyDB US Study (`2008-2025`, `434,763` Rows, `96,172` Held-Out OOS Quotes)\n")
+        lines.append("\n### Quarter-Century Wharton WRDS OptionMetrics IvyDB US Study (`2000-2025`, `1,281,892` Rows, `78` Days, `113,063` Held-Out OOS Quotes)\n")
         lines.append("| Era (Anchor) | Surrogate | OOS Quotes | DE $t_1$ (s) | Autograd $t_1$ (s) | Speedup | DE Week OOS (bps) | Autograd Week OOS (bps) |")
         lines.append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
         for er in wrds["era_benchmarks"]:
@@ -600,9 +600,10 @@ def render_final_report_md(log):
         cov = wrds.get("covid_2020_03_16_pinn_study", {})
         if cov:
             lines.append(
-                f"\n- **2020-03-16 COVID-19 All-Time VIX Peak (`VIX = 82.69`, `2,670` Quotes, $\\sqrt{{v_0^*}} = {cov['spot_vol_pct']}\\%$):** "
-                f"`M3_sech_80` vs Fourier **`{cov['m3_vs_fourier_bps']} bps`** (`5.5x` below `B0` `{cov['b0_vs_fourier_bps']} bps`); "
-                f"Feller violated on **`{wrds['feller_violated_days']}/{wrds['total_evaluated_days']}` (`100.0%`)** WRDS trading days."
+                f"\n- **4-Crisis Single-Surface PINNs & Full-Month Rolling:** `2000-04-14` Dot-Com `3.31` vs `83.91 bps` (`25.4x`), "
+                f"`2011-08-08` Downgrade `36.49` vs `108.44 bps` (`3.0x`), `2018-02-05` Volmageddon `12.44` vs `71.27 bps` (`5.7x`), "
+                f"and `2020-03-16` COVID-19 (`VIX = 82.69`, $\\sqrt{{v_0^*}} = {cov['spot_vol_pct']}\\%$) **`{cov['m3_vs_fourier_bps']} bps`** vs `{cov['b0_vs_fourier_bps']} bps` (`5.5x`); "
+                f"Feller violated on **`{wrds['feller_violated_days']}/{wrds['total_evaluated_days']}` (`100.0%`)** WRDS trading days (`248/248` total SPX days `2000-2026`)."
             )
 
     # Section 10: Complete Publication Figure Index
@@ -625,7 +626,8 @@ def render_final_report_md(log):
         ("fig15_diff_calibration.png", "Millisecond Differentiable Heston Calibration via 10D `M3_param_plus` vs SciPy DE + Fourier"),
         ("fig16_real_spx_market.png", "Live Cboe SPX / SPXW Empirical Market Validation (Parity Curve, Held-Out Smiles, & Stressed Greeks)"),
         ("fig17_spx_168day_rolling_calibration.png", "Full-Archive 168-Trading-Day Rolling SPX Calibration & Next-Day OOS Backtest (`4.12M` Quotes, `M3_param_wide`)"),
-        ("fig18_wrds_multidecade_study.png", "17-Year Wharton WRDS OptionMetrics IvyDB US Multi-Decade SPX Validation (`2008-2025`, `434,763` Rows)"),
+        ("fig18_wrds_multidecade_study.png", "Quarter-Century Wharton WRDS OptionMetrics IvyDB US 9-Era SPX Validation (`2000-2025`, `1.28M` Rows)"),
+        ("fig19_wrds_march2020_aug2025_trajectories.png", "Continuous Full-Month WRDS OptionMetrics Rolling Trajectories: March 2020 COVID-19 (`22d`) vs August 2025 (`21d`)"),
     ]
     for fn, desc in figs:
         lines.append(f"- [{fn}](file://{os.path.join(ROOT, 'paper', fn)}): {desc}")
@@ -657,7 +659,7 @@ def main():
         "real_spx": _load_json("runs/real_spx_report.json") or {},
         "historical_spx": _load_json("runs/historical_spx_multiday_report.json") or {},
         "rolling_168": {k: v for k, v in (_load_json("runs/spx_168day_rolling_report.json") or {}).items() if k != "daily"},
-        "wrds_optionmetrics": {k: v for k, v in (_load_json("runs/wrds_optionmetrics_report.json") or {}).items() if k != "daily_rolling_25days"},
+        "wrds_optionmetrics": {k: v for k, v in (_load_json("runs/wrds_optionmetrics_report.json") or {}).items() if k not in ("daily_rolling_25days", "daily_rolling_78days")},
     }
 
     preds_p2 = {}

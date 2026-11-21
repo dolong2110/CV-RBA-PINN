@@ -1,0 +1,39 @@
+{
+  "arm": "B0",
+  "tag": "US11",
+  "date": "2011-08-08",
+  "train_sec": 243.97,
+  "info": {
+    "adam_steps": 10000,
+    "adam_sec": 204.319,
+    "adam_last_loss": 0.005979138069138211,
+    "term_weight": 100.0,
+    "far_weight": 1.0,
+    "lbfgs_pre_loss": 0.00676170325038048,
+    "lbfgs_post_loss": 0.001452835226154575,
+    "lbfgs_best_loss": 0.001452835226154575,
+    "lbfgs_evals": 531,
+    "lbfgs_iters": 500,
+    "lbfgs_rolled_back": false,
+    "lbfgs_sec": 39.5737
+  },
+  "overall": {
+    "c": 0.0175,
+    "cx": 0.1133,
+    "gam": 0.8239,
+    "cv": 0.6018,
+    "cxv": 0.9841,
+    "cvv": 1.0008
+  },
+  "arbitrage": {
+    "neg_gam_count": 118,
+    "neg_gam_core_count": 35,
+    "min_gam": -0.4160568787094676,
+    "floor_viol_count": 232,
+    "min_c_minus_payoff": -0.007512936690532823,
+    "delta_oob_count": 162,
+    "put_parity_max_err": 1.1102230246251565e-16
+  },
+  "vs_fourier_bps": 108.44,
+  "vs_mkt_bps": 113.07
+}

@@ -1,0 +1,39 @@
+{
+  "arm": "B0",
+  "tag": "DOTCOM00",
+  "date": "2000-04-14",
+  "train_sec": 244.67,
+  "info": {
+    "adam_steps": 10000,
+    "adam_sec": 204.1803,
+    "adam_last_loss": 0.005992227421893616,
+    "term_weight": 100.0,
+    "far_weight": 1.0,
+    "lbfgs_pre_loss": 0.006831862218759869,
+    "lbfgs_post_loss": 0.0016726664333707847,
+    "lbfgs_best_loss": 0.0016726664333707847,
+    "lbfgs_evals": 537,
+    "lbfgs_iters": 500,
+    "lbfgs_rolled_back": false,
+    "lbfgs_sec": 40.411
+  },
+  "overall": {
+    "c": 0.0244,
+    "cx": 0.106,
+    "gam": 0.7461,
+    "cv": 0.61,
+    "cxv": 0.982,
+    "cvv": 1.0001
+  },
+  "arbitrage": {
+    "neg_gam_count": 93,
+    "neg_gam_core_count": 49,
+    "min_gam": -0.7743698704475003,
+    "floor_viol_count": 205,
+    "min_c_minus_payoff": -0.028263367441472342,
+    "delta_oob_count": 103,
+    "put_parity_max_err": 1.1102230246251565e-16
+  },
+  "vs_fourier_bps": 83.91,
+  "vs_mkt_bps": 81.54
+}

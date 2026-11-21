@@ -1,0 +1,39 @@
+{
+  "arm": "B0",
+  "tag": "VOLM18",
+  "date": "2018-02-05",
+  "train_sec": 244.17,
+  "info": {
+    "adam_steps": 10000,
+    "adam_sec": 203.8639,
+    "adam_last_loss": 0.005370926117243635,
+    "term_weight": 100.0,
+    "far_weight": 1.0,
+    "lbfgs_pre_loss": 0.005588617108519355,
+    "lbfgs_post_loss": 0.0012641942555917385,
+    "lbfgs_best_loss": 0.0012641942555917385,
+    "lbfgs_evals": 533,
+    "lbfgs_iters": 500,
+    "lbfgs_rolled_back": false,
+    "lbfgs_sec": 40.2287
+  },
+  "overall": {
+    "c": 0.0361,
+    "cx": 0.1494,
+    "gam": 0.8826,
+    "cv": 0.5943,
+    "cxv": 0.9876,
+    "cvv": 0.9979
+  },
+  "arbitrage": {
+    "neg_gam_count": 144,
+    "neg_gam_core_count": 60,
+    "min_gam": -0.6071246810495594,
+    "floor_viol_count": 201,
+    "min_c_minus_payoff": -0.016111901101034,
+    "delta_oob_count": 154,
+    "put_parity_max_err": 1.1102230246251565e-16
+  },
+  "vs_fourier_bps": 71.27,
+  "vs_mkt_bps": 77.16
+}

@@ -1,0 +1,26 @@
+{
+  "arm": "M3_sech_80",
+  "tag": "VOLM18",
+  "date": "2018-02-05",
+  "train_sec": 407.66,
+  "lbfgs_post_loss": 0.00012113744912028095,
+  "overall": {
+    "c": 0.0033,
+    "cx": 0.0097,
+    "gam": 0.1371,
+    "cv": 0.081,
+    "cxv": 0.2441,
+    "cvv": 0.4915
+  },
+  "arbitrage": {
+    "neg_gam_count": 127,
+    "neg_gam_core_count": 52,
+    "min_gam": -6.416492576784842,
+    "floor_viol_count": 105,
+    "min_c_minus_payoff": -0.00207403100558721,
+    "delta_oob_count": 158,
+    "put_parity_max_err": 1.1102230246251565e-16
+  },
+  "vs_fourier_bps": 12.44,
+  "vs_mkt_bps": 16.97
+}

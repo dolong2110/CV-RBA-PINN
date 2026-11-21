@@ -179,20 +179,43 @@ def recalibrate_day2_differentiable(quotes_t2, struct_params, preloaded=None, ck
     xv = torch.full_like(xs, struct_params["xi"])
     rh = torch.full_like(xs, struct_params["rho"])
 
-    raw_v = torch.tensor([0.0], dtype=torch.float64, requires_grad=True)
-    lbfgs = torch.optim.LBFGS([raw_v], lr=1.0, max_iter=25, line_search_fn="strong_wolfe")
+    with torch.no_grad():
+        g_raw = torch.linspace(-4.5, 4.5, 32, dtype=torch.float64)
+        g_vv = 0.002 + v_span * torch.sigmoid(g_raw)
+        n_g = len(g_raw)
+        pr_g = price_fn_param(
+            xs[None, :].expand(n_g, n_q).reshape(-1),
+            g_vv[:, None].expand(n_g, n_q).reshape(-1),
+            taus[None, :].expand(n_g, n_q).reshape(-1),
+            kp[None, :].expand(n_g, n_q).reshape(-1),
+            th[None, :].expand(n_g, n_q).reshape(-1),
+            xv[None, :].expand(n_g, n_q).reshape(-1),
+            rh[None, :].expand(n_g, n_q).reshape(-1),
+        ).reshape(n_g, n_q)
+        g_losses = (ws[None, :] * (pr_g - ym[None, :]) ** 2).mean(dim=1)
+        init_idx = int(torch.argmin(g_losses).item())
+        best_r = float(g_raw[init_idx].item())
+        best_l = float(g_losses[init_idx].item())
+
+    raw_v = torch.tensor([best_r], dtype=torch.float64, requires_grad=True)
+    lbfgs = torch.optim.LBFGS([raw_v], lr=1.0, max_iter=20, line_search_fn="strong_wolfe")
 
     def closure():
+        nonlocal best_r, best_l
         lbfgs.zero_grad()
         vv = 0.002 + v_span * torch.sigmoid(raw_v[0])
         pr = price_fn_param(xs, vv.expand(n_q), taus, kp, th, xv, rh)
         loss = (ws * (pr - ym) ** 2).mean()
+        lv = float(loss.detach().item())
+        if math.isfinite(lv) and lv < best_l:
+            best_l = lv
+            best_r = float(raw_v[0].detach().item())
         loss.backward()
         return loss
 
     lbfgs.step(closure)
     sec = time.perf_counter() - t0
-    v0_t2 = float((0.002 + v_span * torch.sigmoid(raw_v[0])).detach().item())
+    v0_t2 = float(0.002 + v_span * (1.0 / (1.0 + math.exp(-best_r))))
     with torch.no_grad():
         pr_surr = price_fn_param(xs, torch.full_like(xs, v0_t2), taus, kp, th, xv, rh).numpy()
     slice_data, y_mkt, _ = spx_w8._group_quotes(quotes_t2)

@@ -1,0 +1,26 @@
+{
+  "arm": "M3_sech_80",
+  "tag": "DOTCOM00",
+  "date": "2000-04-14",
+  "train_sec": 402.61,
+  "lbfgs_post_loss": 1.0802145807106842e-05,
+  "overall": {
+    "c": 0.0007,
+    "cx": 0.0027,
+    "gam": 0.0568,
+    "cv": 0.0288,
+    "cxv": 0.0956,
+    "cvv": 0.2359
+  },
+  "arbitrage": {
+    "neg_gam_count": 87,
+    "neg_gam_core_count": 0,
+    "min_gam": -0.11441351026683891,
+    "floor_viol_count": 122,
+    "min_c_minus_payoff": -0.0007566743164413138,
+    "delta_oob_count": 149,
+    "put_parity_max_err": 1.1102230246251565e-16
+  },
+  "vs_fourier_bps": 3.31,
+  "vs_mkt_bps": 28.95
+}
