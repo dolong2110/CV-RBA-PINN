@@ -87,8 +87,36 @@ def calibrate_day1_differentiable(quotes, ckpt_path=DEFAULT_PARAM_CKPT, n_starts
 
     n_q = len(quotes)
     gen = torch.Generator().manual_seed(seed)
-    # Stratified logit multi-starts in [-1.8, 1.8]^5
-    raw = (3.6 * torch.rand((n_starts, 5), generator=gen) - 1.8).requires_grad_(True)
+    # Stratified logit multi-starts in [-1.8, 1.8]^5 + 2 model-free ATM term-structure warm-starts
+    raw_init = 3.6 * torch.rand((n_starts, 5), generator=gen) - 1.8
+    if n_starts >= 4 and n_q >= 8:
+        def _inv_sig(val, lo, hi):
+            p = min(max((val - lo) / max(hi - lo, 1e-12), 0.03), 0.97)
+            return math.log(p / (1.0 - p))
+
+        q_sorted_t = sorted(quotes, key=lambda item: item[0])
+        t_min, t_max = q_sorted_t[0][0], q_sorted_t[-1][0]
+        short_atm = [q for q in quotes if q[0] <= t_min * 1.6 and abs(q[1]) <= 0.06] or q_sorted_t[:5]
+        long_atm = [q for q in quotes if q[0] >= max(t_max * 0.6, t_min) and abs(q[1]) <= 0.10] or q_sorted_t[-5:]
+        q_s = min(short_atm, key=lambda item: abs(item[1]))
+        q_l = min(long_atm, key=lambda item: abs(item[1]))
+        v0_hat = (max(q_s[2] - max(math.exp(q_s[1]) - 1.0, 0.0), 0.005)) ** 2 * (2.0 * math.pi / max(q_s[0], 0.01))
+        th_hat = (max(q_l[2] - max(math.exp(q_l[1]) - 1.0, 0.0), 0.005)) ** 2 * (2.0 * math.pi / max(q_l[0], 0.02))
+        raw_init[0] = torch.tensor([
+            _inv_sig(2.2, box.kappa_min, box.kappa_max),
+            _inv_sig(th_hat, box.theta_min, box.theta_max),
+            _inv_sig(0.45 * box.xi_max, box.xi_min, box.xi_max),
+            _inv_sig(-0.72, box.rho_min, box.rho_max),
+            _inv_sig(v0_hat, v0_bounds[0], v0_bounds[1]),
+        ], dtype=torch.float64)
+        raw_init[1] = torch.tensor([
+            _inv_sig(4.5, box.kappa_min, box.kappa_max),
+            _inv_sig(th_hat, box.theta_min, box.theta_max),
+            _inv_sig(0.80 * box.xi_max, box.xi_min, box.xi_max),
+            _inv_sig(-0.82, box.rho_min, box.rho_max),
+            _inv_sig(v0_hat, v0_bounds[0], v0_bounds[1]),
+        ], dtype=torch.float64)
+    raw = raw_init.requires_grad_(True)
     opt = torch.optim.Adam([raw], lr=0.12)
 
     taus_b = taus[None, :].expand(n_starts, n_q).reshape(-1)

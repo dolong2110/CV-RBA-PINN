@@ -1,0 +1,122 @@
+{
+  "B0_slv": {
+    "n_seeds": 3,
+    "overall": {
+      "c": {
+        "mean": 0.0424,
+        "std": 0.0106
+      },
+      "cx": {
+        "mean": 0.1462,
+        "std": 0.0144
+      },
+      "gam": {
+        "mean": 0.7683,
+        "std": 0.0312
+      },
+      "cv": {
+        "mean": 0.6821,
+        "std": 0.0801
+      },
+      "cxv": {
+        "mean": 0.9914,
+        "std": 0.0074
+      },
+      "cvv": {
+        "mean": 1.0012,
+        "std": 0.0031
+      }
+    },
+    "short_low_var": {
+      "c": {
+        "mean": 0.3914,
+        "std": 0.0807
+      },
+      "cx": {
+        "mean": 0.3765,
+        "std": 0.0342
+      },
+      "gam": {
+        "mean": 0.8118,
+        "std": 0.0291
+      },
+      "cv": {
+        "mean": 0.8717,
+        "std": 0.0494
+      },
+      "cxv": {
+        "mean": 0.9983,
+        "std": 0.0036
+      },
+      "cvv": {
+        "mean": 1.0,
+        "std": 0.0011
+      }
+    },
+    "arbitrage_mean": {
+      "neg_gam_count": 76.33,
+      "neg_gam_core_count": 24.67,
+      "floor_viol_count": 149.33
+    }
+  },
+  "M3_slv": {
+    "n_seeds": 3,
+    "overall": {
+      "c": {
+        "mean": 0.0003,
+        "std": 0.0001
+      },
+      "cx": {
+        "mean": 0.0016,
+        "std": 0.0003
+      },
+      "gam": {
+        "mean": 0.0201,
+        "std": 0.0041
+      },
+      "cv": {
+        "mean": 0.0148,
+        "std": 0.0021
+      },
+      "cxv": {
+        "mean": 0.0427,
+        "std": 0.01
+      },
+      "cvv": {
+        "mean": 0.1335,
+        "std": 0.0236
+      }
+    },
+    "short_low_var": {
+      "c": {
+        "mean": 0.0007,
+        "std": 0.0001
+      },
+      "cx": {
+        "mean": 0.0024,
+        "std": 0.0005
+      },
+      "gam": {
+        "mean": 0.0193,
+        "std": 0.0043
+      },
+      "cv": {
+        "mean": 0.0152,
+        "std": 0.0031
+      },
+      "cxv": {
+        "mean": 0.0413,
+        "std": 0.0109
+      },
+      "cvv": {
+        "mean": 0.1132,
+        "std": 0.0246
+      }
+    },
+    "arbitrage_mean": {
+      "neg_gam_count": 42.33,
+      "neg_gam_core_count": 0.33,
+      "floor_viol_count": 52.0
+    }
+  }
+}

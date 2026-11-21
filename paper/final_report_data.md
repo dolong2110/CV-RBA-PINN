@@ -202,15 +202,15 @@
 
 | Era (Anchor) | Surrogate | OOS Quotes | DE $t_1$ (s) | Autograd $t_1$ (s) | Speedup | DE Week OOS (bps) | Autograd Week OOS (bps) |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `2000_Apr_DotCom` (`2000-04-10`) | `M3_param_wide` | `790` | `13.5` | `1.40` | **`9.6x`** | `17.15` | `19.44` |
-| `2008_Oct_GFC` (`2008-10-14`) | `M3_param_crisis_v2` | `598` | `9.0` | `0.43` | **`20.9x`** | `38.63` | `49.03` |
-| `2011_Aug_USDowngrade` (`2011-08-08`) | `M3_param_crisis_v2` | `1165` | `26.8` | `0.87` | **`30.8x`** | `27.72` | `31.77` |
-| `2015_Aug_FlashCrash` (`2015-08-24`) | `M3_param_wide` | `3682` | `37.3` | `1.00` | **`37.3x`** | `28.06` | `32.91` |
-| `2018_Feb_Volmageddon` (`2018-02-05`) | `M3_param_crisis_v2` | `11254` | `42.7` | `0.99` | **`43.3x`** | `26.17` | `32.14` |
-| `2020_Mar_COVID_FullMonth` (`2020-03-16`) | `M3_param_crisis_v2` | `9854` | `65.1` | `2.53` | **`25.8x`** | `53.46` | `51.32` |
-| `2021_Jul_LowVol_Bull` (`2021-07-12`) | `M3_param_wide` | `24509` | `305.0` | `2.67` | **`114.4x`** | `10.31` | `10.03` |
-| `2022_Oct_Inflation_Bear` (`2022-10-10`) | `M3_param_wide` | `27735` | `102.7` | `2.60` | **`39.4x`** | `14.31` | `17.96` |
-| `2025_Aug_Latest_FullMonth` (`2025-08-25`) | `M3_param_wide` | `33476` | `343.4` | `2.64` | **`130.1x`** | `9.03` | `9.25` |
+| `2000_Apr_DotCom` (`2000-04-10`) | `M3_param_wide` | `790` | `13.5` | `1.50` | **`9.0x`** | `17.15` | `19.44` |
+| `2008_Oct_GFC` (`2008-10-14`) | `M3_param_crisis_v2` | `598` | `9.0` | `0.45` | **`20.3x`** | `38.63` | `49.04` |
+| `2011_Aug_USDowngrade` (`2011-08-08`) | `M3_param_crisis_v2` | `1165` | `26.8` | `0.88` | **`30.4x`** | `27.72` | `31.77` |
+| `2015_Aug_FlashCrash` (`2015-08-24`) | `M3_param_wide` | `3682` | `37.3` | `1.02` | **`36.7x`** | `28.06` | `32.84` |
+| `2018_Feb_Volmageddon` (`2018-02-05`) | `M3_param_crisis_v2` | `11254` | `42.7` | `0.99` | **`43.1x`** | `26.17` | `32.13` |
+| `2020_Mar_COVID_FullMonth` (`2020-03-16`) | `M3_param_crisis_v2` | `9854` | `65.1` | `2.56` | **`25.4x`** | `53.46` | `51.32` |
+| `2021_Jul_LowVol_Bull` (`2021-07-12`) | `M3_param_wide` | `24509` | `305.0` | `2.75` | **`111.0x`** | `10.31` | `10.03` |
+| `2022_Oct_Inflation_Bear` (`2022-10-10`) | `M3_param_wide` | `27735` | `102.7` | `2.60` | **`39.4x`** | `14.31` | `17.18` |
+| `2025_Aug_Latest_FullMonth` (`2025-08-25`) | `M3_param_wide` | `33476` | `343.4` | `2.72` | **`126.1x`** | `9.03` | `9.31` |
 
 - **4-Crisis Single-Surface PINNs & Full-Month Rolling:** `2000-04-14` Dot-Com `3.31` vs `83.91 bps` (`25.4x`), `2011-08-08` Downgrade `36.49` vs `108.44 bps` (`3.0x`), `2018-02-05` Volmageddon `12.44` vs `71.27 bps` (`5.7x`), and `2020-03-16` COVID-19 (`VIX = 82.69`, $\sqrt{v_0^*} = 92.58\%$) **`57.36 bps`** vs `315.99 bps` (`5.5x`); Feller violated on **`78/78` (`100.0%`)** WRDS trading days (`248/248` total SPX days `2000-2026`).
 
@@ -235,3 +235,5 @@
 - [fig17_spx_168day_rolling_calibration.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig17_spx_168day_rolling_calibration.png): Full-Archive 168-Trading-Day Rolling SPX Calibration & Next-Day OOS Backtest (`4.12M` Quotes, `M3_param_wide`)
 - [fig18_wrds_multidecade_study.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig18_wrds_multidecade_study.png): Quarter-Century Wharton WRDS OptionMetrics IvyDB US 9-Era SPX Validation (`2000-2025`, `1.28M` Rows)
 - [fig19_wrds_march2020_aug2025_trajectories.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig19_wrds_march2020_aug2025_trajectories.png): Continuous Full-Month WRDS OptionMetrics Rolling Trajectories: March 2020 COVID-19 (`22d`) vs August 2025 (`21d`)
+- [fig20_empirical_spx_hedging.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig20_empirical_spx_hedging.png): Empirical Market-Marked SPX/SPXW Option Dynamic Hedging Backtest (`1,200` WRDS Contract-Days)
+- [fig21_bates_pide_crash_skew.png](file:///Users/longchaudo/Desktop/Research/CV-RBA-PINN/paper/fig21_bates_pide_crash_skew.png): Nonlocal 2D Bates SVJ Jump-Diffusion PIDE Control-Variate (`M3_bates`) & Crash-Day SPX Skew Fit

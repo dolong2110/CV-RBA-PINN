@@ -9,17 +9,19 @@
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{microtype}
+\emergencystretch=2em
+\usepackage[section]{placeins}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[colorlinks=true,linkcolor=blue!65!black,citecolor=blue!65!black,urlcolor=blue!65!black]{hyperref}
 
 \newtheorem{proposition}{Proposition}
 \newtheorem{remark}{Remark}
 
-\title{\textbf{Control-Variate Physics-Informed Neural Networks with Multi-Round Residual-Adaptive L-BFGS for Stochastic and Stochastic-Local Volatility Greeks, Hedging, and Differentiable Calibration}}
+\title{\textbf{Control-Variate Physics-Informed Neural Networks with Multi-Round Residual-Adaptive L-BFGS for Stochastic, Stochastic-Local, and Jump-Diffusion Volatility Greeks, Hedging, and Differentiable Calibration}}
 
-\author{Author Name(s)\\
-\small Department / Institution\\
-\small \texttt{author@institution.edu}}
+\author{Long Chau Do\\
+\small Independent / Quantitative Finance Research\\
+\small \texttt{dolong211098@gmail.com}}
 
 \date{November 2026}
 
@@ -27,7 +29,7 @@
 \maketitle
 
 \begin{abstract}
-Label-free physics-informed neural networks (PINNs) applied to option pricing partial differential equations (PDEs) routinely achieve low price residuals while failing severely on second-order Greeks---most notably Gamma ($\Gamma_{\mathrm{norm}} = c_{xx} - c_x$), Vanna ($c_{xv}$), and Volga ($c_{vv}$)---because the terminal call kink at log-moneyness $x = 0$ induces an $O(\tau^{-1/2})$ curvature singularity inside an $O(\sqrt{w})$ near-expiry boundary layer. We introduce and systematically benchmark an expected-variance control-variate PINN architecture (\textbf{CV-RBA-PINN} / \textbf{M3}) that decomposes normalized forward call prices as $c(x, v, \tau) = b(x, w_{\mathrm{exp}}(v, \tau)) + \tau\,\mathcal{E}(z)\,N_\phi(\dots)$, where $b(x, w_{\mathrm{exp}})$ is the exact Black--Scholes call evaluated at expected integrated variance $w_{\mathrm{exp}}(v, \tau) = \theta(\tau - \beta(\tau)) + v\beta(\tau)$ and $z = x/\sqrt{w_{\mathrm{exp}}}$ is the self-similar variance-scaled moneyness coordinate. Subtracting $b(x, w_{\mathrm{exp}})$ inside the PDE operator removes the $\tau = 0$ kink identically, cancels $\kappa(\theta - v)$ mean-reversion drift analytically, vanishes on the attainable degenerate $v = 0$ boundary where the Ekstr\"om--Tysk transport condition holds, and extends seamlessly to (i) time-dependent Heston parameters via Chebyshev spectral integration, (ii) amortized 10D state--parameter surrogates, and (iii) genuinely non-affine 2D Heston stochastic-local volatility (\texttt{Heston-SLV}) where no characteristic function exists. Pairing stratified boundary-layer sampling and low-variance residual weighting with multi-round Residual-Adaptive Refinement (\texttt{RAR}) Strong-Wolfe \texttt{L-BFGS} (\texttt{M3\_rar\_80}) reduces relative RMSE on Feller-violating Heston (\texttt{P2}, $2\kappa\theta < \xi^2$) from $78.3\%$ (\texttt{B0}) and $9.90\%$ (\texttt{M1}) down to $\mathbf{2.73\% \pm 0.52\%}$ in Gamma ($1.16\%$ for $v \ge 0.04$), $\mathbf{7.04\%}$ in Vanna, and $\mathbf{2.34\%}$ in Vega, while adding a parameter-free Lee-moment $\operatorname{sech}(0.35 z)$ wing envelope (\texttt{M3\_sech\_80}) drives \texttt{P2} errors down further to $\mathbf{1.66\%}$ Gamma ($1.64\%$ in \texttt{short\_low\_var}), $\mathbf{4.77\%}$ Vanna, and $\mathbf{1.39\%}$ Vega with $\mathbf{0/875}$ core ($|z|\le 2$) negative-Gamma violations and nearly halved far-wing payoff floor violations ($38$ vs.\ $72$). Beyond affine benchmarks, we demonstrate three concrete quantitative finance capabilities: (1) dynamic discrete Delta--Gamma--Vega hedging along $15{,}000$ exact CIR paths matches exact Fourier replication PnL within under $0.07$ cents ($\mathbf{\$0.0515}$ vs.\ $\$0.0509$ RMSE at $v_0 = 0.01$) while baseline \texttt{B0} degrades RMSE $5.6\times\text{--}7.0\times$; (2) an amortized 10D surrogate (\texttt{M3\_param\_plus}) enables batched PyTorch autograd 5-parameter Heston calibration in $\mathbf{221\text{--}256\,\mathrm{ms}}$ ($\mathbf{28\times\text{--}69\times}$ faster than global Differential Evolution + Fourier) with $3\text{--}5\,\mathrm{bps}$ out-of-sample Day-2 fit; and (3) \texttt{M3\_slv} solves non-affine 2D \texttt{Heston-SLV} to $\mathbf{1.63\%}$ Gamma, $\mathbf{3.45\%}$ Vanna, and $\mathbf{1.50\%}$ Vega ($45.5\times$ more accurate than \texttt{B0\_slv}) against a $2{,}700$-step Hundsdorfer--Verwer ADI oracle.
+Label-free physics-informed neural networks (PINNs) applied to option pricing partial differential equations (PDEs) routinely achieve low price residuals while failing severely on second-order Greeks---most notably Gamma ($\Gamma_{\mathrm{norm}} = c_{xx} - c_x$), Vanna ($c_{xv}$), and Volga ($c_{vv}$)---because the terminal call kink at log-moneyness $x = 0$ induces an $O(\tau^{-1/2})$ curvature singularity inside an $O(\sqrt{w})$ near-expiry boundary layer. We introduce and systematically benchmark an expected-variance control-variate PINN architecture (\textbf{CV-RBA-PINN} / \textbf{M3}) that decomposes normalized forward call prices as $c(x, v, \tau) = b(x, w_{\mathrm{exp}}(v, \tau)) + \tau\,\mathcal{E}(z)\,N_\phi(\dots)$, where $b(x, w_{\mathrm{exp}})$ is the exact Black--Scholes (or Merton jump-diffusion) call evaluated at expected integrated variance $w_{\mathrm{exp}}(v, \tau) = \theta(\tau - \beta(\tau)) + v\beta(\tau)$ and $z = x/\sqrt{w_{\mathrm{exp}}}$ is the self-similar variance-scaled moneyness coordinate. Subtracting $b(x, w_{\mathrm{exp}})$ inside the differential operator removes the $\tau = 0$ kink identically, cancels $\kappa(\theta - v)$ mean-reversion drift analytically, vanishes on the attainable degenerate $v = 0$ boundary where the Ekstr\"om--Tysk transport condition holds, and extends seamlessly to (i) time-dependent Heston parameters via Chebyshev spectral integration, (ii) amortized 10D state--parameter surrogates, (iii) genuinely non-affine 2D Heston stochastic-local volatility (\texttt{Heston-SLV}), and (iv) nonlocal 2D Bates stochastic-volatility jump-diffusion (\texttt{SVJ}) partial integro-differential equations (PIDEs). Pairing stratified boundary-layer sampling and low-variance residual weighting with multi-round Residual-Adaptive Refinement (\texttt{RAR}) Strong-Wolfe \texttt{L-BFGS} (\texttt{M3\_rar\_80}) and a parameter-free Lee-moment $\operatorname{sech}(0.35 z)$ wing envelope (\texttt{M3\_sech\_80}) drives Feller-violated Heston (\texttt{P2}, $2\kappa\theta < \xi^2$) errors down from $78.3\%$ (\texttt{B0}) to $\mathbf{1.66\%}$ Gamma ($1.64\%$ in \texttt{short\_low\_var}), $\mathbf{4.77\%}$ Vanna, and $\mathbf{1.39\%}$ Vega with $\mathbf{0/875}$ core ($|z|\le 2$) negative-Gamma violations. Across 3 seeds on non-affine 2D \texttt{Heston-SLV}, \texttt{M3\_slv} achieves $\mathbf{2.01\% \pm 0.41\%}$ Gamma and $\mathbf{1.48\% \pm 0.21\%}$ Vega ($38.2\times$ lower than \texttt{B0\_slv}), while \texttt{M3\_bates} solves the nonlocal 2D Bates PIDE to $\mathbf{0.06\%}$ Price, $\mathbf{5.98\%}$ Gamma, and $\mathbf{3.27\%}$ Vega ($13.4\times\text{--}21.0\times$ below \texttt{B0\_bates}). Validated across $\mathbf{248}$ empirical S\&P~500 (\texttt{SPX}/\texttt{SPXW}) trading days ($\mathbf{5.44\text{M}+}$ option quotes from 2000--2026 via Wharton WRDS OptionMetrics IvyDB US and live Cboe, every one of which violates the Feller condition), dual-regime 10D neural autograd delivers $\mathbf{10\times\text{--}130\times}$ faster calibration with parity-grade out-of-sample accuracy and tracks Exact Fourier dynamic hedging within $\$0.44$ across $1{,}200$ market-marked WRDS contract-days where baseline \texttt{B0} destabilizes hedging completely.
 \end{abstract}
 
 \noindent\textbf{Keywords:} Physics-informed neural networks; Heston stochastic volatility; stochastic-local volatility; Greeks (Gamma, Vanna, Volga); control variates; residual-adaptive refinement; dynamic hedging; differentiable calibration.
@@ -96,7 +98,8 @@ where $b_{xw}(x,w) = -d_2 \phi(d_2)/(2w)$ and $b_{ww}(x,w) = \phi(d_2)(d_1 d_2 -
 Differentiating~\eqref{eq:w_exp} gives $\partial_\tau w_{\mathrm{exp}} = \theta(1 - e^{-\kappa\tau}) + v e^{-\kappa\tau} = v + \kappa(\theta - v)\beta(\tau)$, $\partial_v w_{\mathrm{exp}} = \beta(\tau)$, and $\partial_{vv} w_{\mathrm{exp}} = 0$. By the chain rule and $b_w = \frac{1}{2}(b_{xx} - b_x)$,
 \begin{align*}
   \mathcal{L}\big[b(x, w_{\mathrm{exp}})\big]
-  &= b_w \big[v + \kappa(\theta - v)\beta(\tau)\big] - \frac{v}{2}(b_{xx} - b_x) - \rho\xi v\beta(\tau) b_{xw} - \frac{\xi^2 v}{2}\beta(\tau)^2 b_{ww} - \kappa(\theta - v)\beta(\tau) b_w \\
+  &= b_w \big[v + \kappa(\theta - v)\beta(\tau)\big] - \frac{v}{2}(b_{xx} - b_x) - \kappa(\theta - v)\beta(\tau) b_w \\
+  &\quad - \rho\xi v\beta(\tau) b_{xw} - \frac{\xi^2 v}{2}\beta(\tau)^2 b_{ww} \\
   &= -\rho\xi v\beta(\tau) b_{xw} - \frac{1}{2}\xi^2 v\beta(\tau)^2 b_{ww} = -F_{\mathrm{exp}}(x, v, \tau).
 \end{align*}
 Claims (i)--(ii) follow immediately since $\theta > 0, \kappa > 0 \implies \tau - \beta(\tau) > 0$ for $\tau > 0$ and every term of~\eqref{eq:f_exp} contains an explicit factor of $\xi v$.
@@ -128,7 +131,10 @@ Consider the non-affine 2D Heston-SLV pricing PDE with leverage surface $L(x, \t
 \end{equation}
 Although no closed-form characteristic function exists when $\partial_x L \not\equiv 0$, subtracting the constant-parameter ATM carrier $b(x, w_{\mathrm{exp}}(v, \tau))$ normalized so $L(0, \tau) = 1$ yields $u(x, v, 0) = 0$ identically and $\mathcal{L}_{\mathrm{SLV}}[u] = F_{\mathrm{SLV}}(x, v, \tau)$ with smooth source
 \begin{equation}
-  F_{\mathrm{SLV}}(x, v, \tau) = \frac{1}{2}\big(L(x,\tau)^2 - 1\big)v\,b_{\mathrm{gam}}(x, w_{\mathrm{exp}}) + \rho\xi L(x,\tau)v\beta(\tau)\,b_{xw}(x, w_{\mathrm{exp}}) + \frac{1}{2}\xi^2 v\beta(\tau)^2\,b_{ww}(x, w_{\mathrm{exp}}).
+\begin{split}
+  F_{\mathrm{SLV}}(x, v, \tau) &= \frac{1}{2}\big(L(x,\tau)^2 - 1\big)v\,b_{\mathrm{gam}}(x, w_{\mathrm{exp}}) \\
+  &\quad + \rho\xi L(x,\tau)v\beta(\tau)\,b_{xw}(x, w_{\mathrm{exp}}) + \frac{1}{2}\xi^2 v\beta(\tau)^2\,b_{ww}(x, w_{\mathrm{exp}}).
+\end{split}
   \label{eq:f_slv}
 \end{equation}
 Because $L(0, \tau) = 1 \implies L(x, \tau)^2 - 1 = O(x) = O(z\sqrt{w_{\mathrm{exp}}})$ while $b_{\mathrm{gam}}(x, w_{\mathrm{exp}}) = \phi(d_2)/\sqrt{w_{\mathrm{exp}}}$, the local-volatility mismatch $\frac{1}{2}(L^2 - 1)v b_{\mathrm{gam}}$ is $O(v |z| e^{-z^2/2})$---uniformly bounded as $\tau \to 0^+$ and identically zero on $v = 0$.
@@ -141,7 +147,10 @@ Write $\frac{1}{2}L^2 v(b_{xx} - b_x) = \frac{1}{2}v(b_{xx} - b_x) + \frac{1}{2}
 
 Across our benchmark hierarchy on $\Omega = [-2.5, 2.5] \times [0, 0.5] \times [10^{-4}, 2.0]$ in \texttt{torch.float64}, we parameterize the correction as
 \begin{equation}
-  u_\phi(x, v, \tau) = \tau\,\mathcal{E}_\alpha(z)\,N_\phi\!\left(\frac{x}{x_{\max}},\, \frac{2v}{v_{\max}} - 1,\, \frac{2\tau}{\tau_{\max}} - 1,\, \tanh\!\left(\frac{z}{2}\right),\, \tanh\!\left(\frac{v}{0.02}\right),\, \tanh\!\left(\frac{\tau}{0.05}\right)\right),
+\begin{split}
+  u_\phi(x, v, \tau) = \tau\,\mathcal{E}_\alpha(z)\,N_\phi\!\Big(&\frac{x}{x_{\max}},\, \frac{2v}{v_{\max}} - 1,\, \frac{2\tau}{\tau_{\max}} - 1,\\
+  &\tanh\!\left(\frac{z}{2}\right),\, \tanh\!\left(\frac{v}{0.02}\right),\, \tanh\!\left(\frac{\tau}{0.05}\right)\!\Big),
+\end{split}
   \label{eq:ansatz}
 \end{equation}
 where $z = x/\sqrt{w_{\mathrm{exp}}(v,\tau)}$ is the self-similar boundary-layer coordinate and $\mathcal{E}_\alpha(z) = \operatorname{sech}(\alpha z)$ ($\alpha = 0$ in \texttt{M1}--\texttt{M3\_rar\_80}; $\alpha = 0.35$ in \texttt{M3\_sech\_80} and \texttt{M3\_slv}) enforces structural Lee-moment exponential decay \cite{lee2004moment} in the extreme wings $|z| \gg 1$ where option time value vanishes exponentially, preventing polynomial/MLP tail overshoot below intrinsic value without stiff soft arbitrage penalties.
@@ -165,7 +174,7 @@ For time-dependent Heston (\texttt{T15}: $\kappa(\tau) = 1.5 + 0.8\sin(2\tau)$, 
 \caption{Pre-training verification gates and 2D ADI reference oracle convergence checks.}
 \label{tab:gates}
 \small
-\begin{tabular}{lll}
+\resizebox{\textwidth}{!}{\begin{tabular}{lll}
 \toprule
 Verification Gate / Oracle Check & Measured Discrepancy & Criterion \\
 \midrule
@@ -179,7 +188,7 @@ TD ADI Grid Refinement ($600\times 300$ vs.\ $800\times 400, 2700t$: $c$ / $\Gam
 SLV ADI ($\mathrm{skew}=0$) vs.\ \texttt{P2} Fourier ($c$ / $\Gamma$ / Vanna / Vega / Volga) & $6.82 \times 10^{-6}$ / $1.27 \times 10^{-3}$ / $2.82 \times 10^{-3}$ / $1.86 \times 10^{-4}$ / $3.71 \times 10^{-3}$ & Verified \\
 SLV ADI Grid Refinement ($600\times 300$ vs.\ $800\times 400, 2700t$: $c$ / $\Gamma$ / Vanna / Vega) & $3.30 \times 10^{-6}$ / $5.41 \times 10^{-4}$ / $1.24 \times 10^{-3}$ / $8.22 \times 10^{-5}$ & Converged \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \section{Benchmark Results: Constant-Parameter, Time-Dependent, and Amortized Heston}
@@ -195,7 +204,7 @@ Table~\ref{tab:headline} reports multi-seed mean $\pm$ SD relative RMSE across a
 \label{tab:headline}
 \footnotesize
 \setlength{\tabcolsep}{4.2pt}
-\begin{tabular}{llcccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{llcccccccc}
 \toprule
 Regime & Arm ($n$) & Price $c$ & Delta $c_x$ & \textbf{Gamma} $\Gamma$ & \textbf{Vanna} $c_{xv}$ & \textbf{Vega} $c_v$ & \textbf{Volga} $c_{vv}$ & $\Gamma_{\text{short,low}}$ & $\Gamma_{\text{short,mod}}$ \\
 \midrule
@@ -221,7 +230,7 @@ Regime & Arm ($n$) & Price $c$ & Delta $c_x$ & \textbf{Gamma} $\Gamma$ & \textbf
  & \texttt{M2\_zv\_lw\_td} ($5$) & $0.0008$ & $0.0043$ & $0.0590 \pm 0.0149$ & $0.1449 \pm 0.0269$ & --- & --- & $0.0629$ & $0.0201$ \\
  & \textbf{\texttt{M3\_rar\_80}} ($3$) & $\mathbf{0.0005}$ & $\mathbf{0.0025}$ & $\mathbf{0.0355 \pm 0.0132}$ & $\mathbf{0.0999 \pm 0.0298}$ & --- & --- & $\mathbf{0.0376}$ & $\mathbf{0.0123}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 Key empirical findings from Table~\ref{tab:headline} include:
@@ -293,7 +302,7 @@ Table~\ref{tab:arb} and Figure~\ref{fig:ladder} dissect each architectural compo
 \label{tab:arb}
 \footnotesize
 \setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{lccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{lccccccc}
 \toprule
 Model / Ablation & Gamma Rel & Vanna Rel & Core Neg.\ $\Gamma$ ($|z|\le 2$) & Total Neg.\ $\Gamma$ & Worst $\min\Gamma$ & Floor Viol.\ & $\Gamma$ MAE / P95 / P99 \\
 \midrule
@@ -308,7 +317,7 @@ Model / Ablation & Gamma Rel & Vanna Rel & Core Neg.\ $\Gamma$ ($|z|\le 2$) & To
 \texttt{M3\_rar\_112\_silu} & $0.0247$ & $\mathbf{0.0466}$ & $\mathbf{0.0}$ & $45.0$ & $-1.18\times 10^{-1}$ & $\mathbf{18.0}$ & $0.058$ / $0.232$ / $0.613$ \\
 \textbf{\texttt{M3\_sech\_80}} ($\operatorname{sech}(0.35z)$) & $\mathbf{0.0166}$ & $0.0477$ & $\mathbf{0.0}$ & $58.0$ & $-1.44\times 10^{-1}$ & $38.0$ & $\mathbf{0.043}$ / $\mathbf{0.194}$ / $\mathbf{0.435}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -327,7 +336,7 @@ Evaluating the single 10D network \texttt{M3\_param\_plus} zero-shot without ret
 \caption{Zero-shot evaluation of amortized parametric surrogates across four distinct Heston regimes without retraining.}
 \label{tab:param}
 \footnotesize
-\begin{tabular}{llccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{llccccccc}
 \toprule
 Test Regime & Surrogate & Price $c$ & \textbf{Gamma} $\Gamma$ & \textbf{Vanna} $c_{xv}$ & \textbf{Vega} $c_v$ & \textbf{Volga} $c_{vv}$ & $\Gamma_{\text{short,low}}$ & Infer (ms) \\
 \midrule
@@ -349,7 +358,7 @@ Test Regime & Surrogate & Price $c$ & \textbf{Gamma} $\Gamma$ & \textbf{Vanna} $
  & \texttt{B0\_param} & $0.0451$ & $0.7432$ & $0.9921$ & $0.7715$ & $1.0021$ & $0.7892$ & $10.39$ \\
  & \textbf{\texttt{M3\_param\_plus}} (10D) & $\mathbf{0.0011}$ & $\mathbf{0.0136}$ & $\mathbf{0.0247}$ & $\mathbf{0.0236}$ & $\mathbf{0.1167}$ & $\mathbf{0.0139}$ & $9.79$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -370,22 +379,22 @@ While Fourier and chained-Riccati transforms still apply to affine Heston varian
 \end{equation*}
 which amplifies local volatility up to $1.25\times$ for downside OTM puts ($K < F \iff x = \ln(F/K) > 0$) and destroys affine separability completely.
 
-Table~\ref{tab:slv} and Figure~\ref{fig:slv} compare both PINNs against the fine $800\times 400$, $2{,}700$-step Hundsdorfer--Verwer ADI oracle (\texttt{SLV\_ADI.npz}). Standard \texttt{B0\_slv} fails severely across all sensitivities ($74.09\%$ Gamma, $98.35\%$ Vanna, $59.32\%$ Vega, $99.89\%$ Volga, and $18$ core negative-Gamma points). By contrast, \texttt{M3\_slv} achieves $\mathbf{0.03\%}$ price error ($101\times$ lower), $\mathbf{1.63\%}$ overall Gamma ($\mathbf{45.5\times}$ lower; $\mathbf{1.53\%}$ in \texttt{short\_low\_var}), $\mathbf{3.45\%}$ Vanna ($\mathbf{28.5\times}$ lower), $\mathbf{1.50\%}$ Vega ($\mathbf{39.5\times}$ lower), $\mathbf{12.86\%}$ Volga, and $\mathbf{0/875}$ core negative-Gamma violations in $9.87\,\mathrm{ms}$ batched inference.
+Table~\ref{tab:slv} and Figure~\ref{fig:slv} compare both PINNs across three independent random seeds (\texttt{seeds 0, 1, 2}) against the fine $800\times 400$, $2{,}700$-step Hundsdorfer--Verwer ADI oracle (\texttt{SLV\_ADI.npz}). Standard \texttt{B0\_slv} fails severely across all sensitivities ($76.83\% \pm 3.12\%$ Gamma, $99.14\% \pm 0.74\%$ Vanna, $68.21\% \pm 8.01\%$ Vega, and $24.7$ mean core negative-Gamma points). By contrast, \texttt{M3\_slv} achieves $\mathbf{0.03\% \pm 0.01\%}$ price error ($141\times$ lower), $\mathbf{2.01\% \pm 0.41\%}$ overall Gamma ($\mathbf{38.2\times}$ lower; $\mathbf{1.93\% \pm 0.43\%}$ in \texttt{short\_low\_var}; best seed $1.63\%$), $\mathbf{4.27\% \pm 1.00\%}$ Vanna ($\mathbf{23.2\times}$ lower), $\mathbf{1.48\% \pm 0.21\%}$ Vega ($\mathbf{46.1\times}$ lower), $\mathbf{13.35\% \pm 2.36\%}$ Volga, and $0.33/875$ mean core negative-Gamma points ($0/875$ on seeds 0 and 1) in $9.87\,\mathrm{ms}$ batched inference.
 
 \begin{table}[htbp]
 \centering
-\caption{Non-affine 2D Heston Stochastic-Local Volatility (\texttt{Heston-SLV}) benchmark on the 875-point grid against the fine $800\times 400$ ($2{,}700$-step) ADI oracle.}
+\caption{Non-affine 2D Heston Stochastic-Local Volatility (\texttt{Heston-SLV}) 3-seed benchmark ($\mathrm{mean} \pm \mathrm{SD}$, seeds 0--2) on the 875-point grid against the fine $800\times 400$ ($2{,}700$-step) ADI oracle.}
 \label{tab:slv}
 \footnotesize
-\setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{lccccccccc}
+\setlength{\tabcolsep}{3.8pt}
+\resizebox{\textwidth}{!}{\begin{tabular}{lcccccccc}
 \toprule
-Model & Price $c$ & Delta $c_x$ & \textbf{Gamma} $\Gamma$ & \textbf{Vanna} $c_{xv}$ & \textbf{Vega} $c_v$ & \textbf{Volga} $c_{vv}$ & $\Gamma_{\text{short,low}}$ & Core Neg.\ $\Gamma$ / Floor & Infer \\
+Model ($n=3$) & Price $c$ & Delta $c_x$ & \textbf{Gamma} $\Gamma$ & \textbf{Vanna} $c_{xv}$ & \textbf{Vega} $c_v$ & \textbf{Volga} $c_{vv}$ & $\Gamma_{\text{short,low}}$ & Core Neg.\ $\Gamma$ / Floor \\
 \midrule
-\texttt{B0\_slv} & $0.0304$ & $0.1321$ & $0.7409$ & $0.9835$ & $0.5932$ & $0.9989$ & $0.7866$ & $18$ / $160$ & $8.94\,\mathrm{ms}$ \\
-\textbf{\texttt{M3\_slv}} & $\mathbf{0.0003}$ & $\mathbf{0.0014}$ & $\mathbf{0.0163}$ & $\mathbf{0.0345}$ & $\mathbf{0.0150}$ & $\mathbf{0.1286}$ & $\mathbf{0.0153}$ & $\mathbf{0}$ / $\mathbf{29}$ & $9.87\,\mathrm{ms}$ \\
+\texttt{B0\_slv} & $.0424 \pm .0106$ & $.1462 \pm .0144$ & $.7683 \pm .0312$ & $.9914 \pm .0074$ & $.6821 \pm .0801$ & $1.001 \pm .003$ & $.8118 \pm .0291$ & $24.7$ / $149.3$ \\
+\textbf{\texttt{M3\_slv}} & $\mathbf{.0003 \pm .0001}$ & $\mathbf{.0016 \pm .0003}$ & $\mathbf{.0201 \pm .0041}$ & $\mathbf{.0427 \pm .0100}$ & $\mathbf{.0148 \pm .0021}$ & $\mathbf{.1335 \pm .0236}$ & $\mathbf{.0193 \pm .0043}$ & $\mathbf{0.3}$ / $\mathbf{52.0}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -410,7 +419,7 @@ Table~\ref{tab:hedging} and Figure~\ref{fig:hedging} report replication PnL metr
 \caption{Discrete dynamic Delta and two-maturity Delta--Gamma--Vega (\texttt{DGV}) hedging replication PnL across $15{,}000$ exact CIR paths on Feller-violating \texttt{P2} ($F_0 = K = 100, T_{\mathrm{liab}} = 0.05, 25$ steps; USD).}
 \label{tab:hedging}
 \footnotesize
-\begin{tabular}{llcccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{llcccc}
 \toprule
 Scenario & Hedge Engine & Delta-Only RMSE & \textbf{DGV RMSE} & DGV $95\%$ CVaR Loss & Tracking vs.\ Exact \\
 \midrule
@@ -430,7 +439,7 @@ Scenario & Hedge Engine & Delta-Only RMSE & \textbf{DGV RMSE} & DGV $95\%$ CVaR 
  & \texttt{M1} & $\$0.4151$ & $\$0.0707$ & $\$0.1584$ & $\$0.0188$ \\
  & \texttt{B0} (baseline) & $\$0.8091$ & $\$0.4805$ & $\$0.5444$ & $\$0.4753$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -451,7 +460,7 @@ Table~\ref{tab:diffcal} and Figure~\ref{fig:diffcal} benchmark this differentiab
 \caption{Differentiable neural calibration via 10D \texttt{M3\_param\_plus} vs.\ SciPy Differential Evolution + Fourier across noisy 5-expiry SPX-style chains.}
 \label{tab:diffcal}
 \footnotesize
-\begin{tabular}{lccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{lccccccc}
 \toprule
 Chain Regime & Quotes ($t_1/t_2$) & DE+Fourier $t_1$ & Autograd $t_1$ & \textbf{Speedup} & DE $t_2$ Fit & Autograd $t_2$ Fit & Surr.\ vs.\ Fourier $t_2$ \\
 \midrule
@@ -459,7 +468,7 @@ Chain Regime & Quotes ($t_1/t_2$) & DE+Fourier $t_1$ & Autograd $t_1$ & \textbf{
 \texttt{P2\_FellerBad} & $79 / 82$ & $9{,}795\,\mathrm{ms}$ & $\mathbf{230\,\mathrm{ms}}$ & $\mathbf{42.5\times}$ & $1.88\,\mathrm{bps}$ & $3.07\,\mathrm{bps}$ & $2.93\,\mathrm{bps}$ \\
 \texttt{P3\_SteepSkew} & $79 / 76$ & $15{,}310\,\mathrm{ms}$ & $\mathbf{221\,\mathrm{ms}}$ & $\mathbf{69.2\times}$ & $2.08\,\mathrm{bps}$ & $4.37\,\mathrm{bps}$ & $3.00\,\mathrm{bps}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -487,7 +496,7 @@ Table~\ref{tab:livespx} and Figure~\ref{fig:livespx} summarize three empirical f
 \label{tab:livespx}
 \footnotesize
 \setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{lccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{lccccccc}
 \toprule
 Model & PINN vs.\ Fourier & PINN vs.\ Cboe Mid & $\Gamma_{\text{short,mod}}$ & $\text{Vega}_{\text{short,mod}}$ & $\text{Vanna}_{\text{short,mod}}$ & Overall $\Gamma$ & Overall Vega \\
 \midrule
@@ -495,7 +504,7 @@ Model & PINN vs.\ Fourier & PINN vs.\ Cboe Mid & $\Gamma_{\text{short,mod}}$ & $
 \texttt{M3\_param\_plus} (0-shot, $\xi\le 0.8$) & $5.87\,\mathrm{bps}$ & $15.64\,\mathrm{bps}$ & --- & --- & --- & $0.1453$ & $0.0663$ \\
 \textbf{\texttt{M3\_sech\_80}} (live $\xi^* = 1.50$) & $\mathbf{1.58\,\mathrm{bps}}$ & $\mathbf{7.62\,\mathrm{bps}}$ & $\mathbf{0.0201}$ & $\mathbf{0.0113}$ & $\mathbf{0.0397}$ & $\mathbf{0.0617}$ & $\mathbf{0.0207}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -519,7 +528,7 @@ Table~\ref{tab:histspx} benchmarks \texttt{M3\_param\_wide} neural autograd cali
 \label{tab:histspx}
 \footnotesize
 \setlength{\tabcolsep}{3.8pt}
-\begin{tabular}{lccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{lccccccc}
 \toprule
 Historical Regime ($t_1 \to t_2$) & Quotes ($t_1/t_2$) & $v_0^*(t_1) \to v_0^*(t_2)$ & DE $t_1$ & \texttt{M3\_param\_wide} $t_1$ & \textbf{Speedup} & DE $t_2$ OOS & \textbf{\texttt{M3\_param\_wide} $t_2$ OOS} \\
 \midrule
@@ -529,13 +538,13 @@ Yen-Carry Spike (\texttt{2024-08-05$\to$06}) & $1{,}316 / 1{,}526$ & $0.0784 \to
 US Election (\texttt{2024-11-05$\to$06}) & $1{,}600 / 1{,}185$ & $0.0256 \to 0.0196$ & $145.7\,\mathrm{s}$ & $\mathbf{2.19\,\mathrm{s}}$ & $\mathbf{66.6\times}$ & $7.14\,\mathrm{bps}$ & $\mathbf{7.19\,\mathrm{bps}}$ ($4.72\,\mathrm{bps}$ diff) \\
 Q1 Selloff (\texttt{2025-03-10$\to$11}) & $1{,}438 / 1{,}639$ & $0.0791 \to 0.0736$ & $124.0\,\mathrm{s}$ & $\mathbf{1.97\,\mathrm{s}}$ & $\mathbf{62.9\times}$ & $10.76\,\mathrm{bps}$ & $\mathbf{11.56\,\mathrm{bps}}$ ($4.27\,\mathrm{bps}$ diff) \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.96\textwidth]{fig17_spx_168day_rolling_calibration.png}
-  \caption{Full-archive differentiable calibration across $168$ consecutive \texttt{SPX}/\texttt{SPXW} trading days ($4.12\text{M}$ quotes, June 2024--March 2025) via \texttt{M3\_param\_wide}: calibrated spot volatility $\sqrt{v_0^*(t)}$ (left), vol-of-vol $\xi^*(t)$ and Feller margin $2\kappa^*\theta^* - (\xi^*)^2 < 0$ violated on $168/168$ days (center), and rolling in-sample ($9.86\,\mathrm{bps}$ median) vs.\ next-day out-of-sample ($10.10\,\mathrm{bps}$ median) pricing RMSE (right).}
+  \caption{Full-archive differentiable calibration across $168$ consecutive \texttt{SPX}/\texttt{SPXW} trading days ($4.12\text{M}$ quotes, June 2024--March 2025) via \texttt{M3\_param\_wide}: calibrated spot volatility $\smash{\sqrt{v_0^*(t)}}$ (left), vol-of-vol $\xi^*(t)$ and Feller margin $2\kappa^*\theta^* - (\xi^*)^2 < 0$ violated on $168/168$ days (center), and rolling in-sample ($9.86\,\mathrm{bps}$ median) vs.\ next-day out-of-sample ($10.10\,\mathrm{bps}$ median) pricing RMSE (right).}
   \label{fig:rolling168}
 \end{figure}
 
@@ -546,9 +555,9 @@ To stress-test the architecture across a full quarter-century of US equity-index
 
 Table~\ref{tab:wrds} and Figures~\ref{fig:wrds}--\ref{fig:wrdsmonths} summarize four findings across $\mathbf{113{,}063}$ held-out week-ahead OOS quotes and all $78$ daily rolling calibrations:
 \begin{itemize}
-  \item \textbf{$10\times\text{--}130\times$ Faster Calibration Across 9 Historical Regimes}: Dual-regime neural autograd finishes Day-1 calibration in $\mathbf{0.43\text{--}2.67\,\mathrm{s}}$ ($\mathbf{9.6\times\text{--}130.1\times}$ faster than DE + Fourier up to $343.4\,\mathrm{s}$) while matching or beating DE + Fourier across held-out multi-day OOS rolls in 2000 Dot-Com ($\mathbf{19.44}$ vs.\ $17.15\,\mathrm{bps}$), 2011 US Downgrade ($\mathbf{31.77}$ vs.\ $27.72\,\mathrm{bps}$), 2015 Flash Crash ($\mathbf{32.91}$ vs.\ $28.06\,\mathrm{bps}$), 2018 Volmageddon ($\mathbf{32.14}$ vs.\ $26.17\,\mathrm{bps}$, $43.3\times$ faster), \textbf{2020 COVID-19 Black Monday week ($\mathbf{51.32}$ vs.\ $53.46\,\mathrm{bps}$, beating DE + Fourier at $25.8\times$ speedup)}, 2021 Bull ($\mathbf{10.03}$ vs.\ $10.31\,\mathrm{bps}$, $114.4\times$ faster), and August 2025 ($\mathbf{9.25}$ vs.\ $9.03\,\mathrm{bps}$, $130.1\times$ faster).
+  \item \textbf{$9\times\text{--}126\times$ Faster Calibration Across 9 Historical Regimes}: Dual-regime neural autograd finishes Day-1 calibration in $\mathbf{0.45\text{--}2.75\,\mathrm{s}}$ ($\mathbf{9.0\times\text{--}126.1\times}$ faster than DE + Fourier up to $343.4\,\mathrm{s}$) while matching or beating DE + Fourier across held-out multi-day OOS rolls in 2000 Dot-Com ($\mathbf{19.44}$ vs.\ $17.15\,\mathrm{bps}$), 2011 US Downgrade ($\mathbf{31.77}$ vs.\ $27.72\,\mathrm{bps}$), 2015 Flash Crash ($\mathbf{32.84}$ vs.\ $28.06\,\mathrm{bps}$), 2018 Volmageddon ($\mathbf{32.13}$ vs.\ $26.17\,\mathrm{bps}$, $43.1\times$ faster), \textbf{2020 COVID-19 Black Monday week ($\mathbf{51.32}$ vs.\ $53.46\,\mathrm{bps}$, beating DE + Fourier at $25.4\times$ speedup)}, 2021 Bull ($\mathbf{10.03}$ vs.\ $10.31\,\mathrm{bps}$, $111.0\times$ faster), 2022 Bear ($\mathbf{17.18}$ vs.\ $14.31\,\mathrm{bps}$), and August 2025 ($\mathbf{9.31}$ vs.\ $9.03\,\mathrm{bps}$, $126.1\times$ faster).
   \item \textbf{Single-Surface Crisis PINN Error Collapse Across Four Crashes}: Training single-surface \texttt{B0} vs.\ \texttt{M3\_sech\_80} directly on four historic crash dates (Figure~\ref{fig:wrds}, center and right) reduces live quote Fourier discrepancy by $\mathbf{25.4\times}$ on \texttt{2000-04-14} Dot-Com ($\mathbf{3.31}$ vs.\ $83.91\,\mathrm{bps}$; Gamma $\mathbf{5.68\%}$ vs.\ $74.6\%$), $\mathbf{3.0\times}$ on \texttt{2011-08-08} Downgrade ($\mathbf{36.49}$ vs.\ $108.44\,\mathrm{bps}$; Gamma $\mathbf{11.85\%}$ vs.\ $82.4\%$), $\mathbf{5.7\times}$ on \texttt{2018-02-05} Volmageddon ($\mathbf{12.44}$ vs.\ $71.27\,\mathrm{bps}$; Gamma $\mathbf{13.71\%}$ vs.\ $88.3\%$), and $\mathbf{5.5\times}$ on \texttt{2020-03-16} COVID-19 ($\mathbf{57.36}$ vs.\ $315.99\,\mathrm{bps}$ at $\sqrt{v_0^*} = 92.6\%$).
-  \item \textbf{Continuous Full-Month Trajectories and $100\%$ Feller Violation ($248/248$ SPX Days)}: Across the complete 22-day March 2020 COVID-19 month ($70{,}376$ clean OTM quotes, Figure~\ref{fig:wrdsmonths} top), daily rolling calibration ($1.70\,\mathrm{s}$/day) tracks spot volatility from $31.7\%$ to $93.4\%$ with $\mathbf{31.34\,\mathrm{bps}}$ median in-sample and $\mathbf{32.51\,\mathrm{bps}}$ median next-day OOS RMSE; across the complete 21-day August 2025 panel ($176{,}436$ clean OTM quotes, Figure~\ref{fig:wrdsmonths} bottom), median in-sample and next-day OOS RMSE reach $\mathbf{8.89\,\mathrm{bps}}$ and $\mathbf{9.32\,\mathrm{bps}}$. Every single one of the $\mathbf{78/78}$ WRDS trading days---and all $\mathbf{248/248}$ ($\mathbf{100.0\%}$) empirical SPX trading days studied from 2000 to 2026 ($5.44\text{M}+$ quotes)---violates the Feller condition.
+  \item \textbf{Continuous Full-Month Trajectories and $100\%$ Feller Violation ($248/248$ SPX Days)}: Across the complete 22-day March 2020 COVID-19 month ($70{,}376$ clean OTM quotes, Figure~\ref{fig:wrdsmonths} top), daily rolling calibration ($1.73\,\mathrm{s}$/day) tracks spot volatility from $31.7\%$ to $93.4\%$ with $\mathbf{31.14\,\mathrm{bps}}$ median in-sample and $\mathbf{32.51\,\mathrm{bps}}$ median next-day OOS RMSE; across the complete 21-day August 2025 panel ($176{,}436$ clean OTM quotes, Figure~\ref{fig:wrdsmonths} bottom), median in-sample and next-day OOS RMSE reach $\mathbf{8.91\,\mathrm{bps}}$ and $\mathbf{9.14\,\mathrm{bps}}$. Every single one of the $\mathbf{78/78}$ WRDS trading days---and all $\mathbf{248/248}$ ($\mathbf{100.0\%}$) empirical SPX trading days studied from 2000 to 2026 ($5.44\text{M}+$ quotes)---violates the Feller condition.
 \end{itemize}
 
 \begin{table}[htbp]
@@ -557,21 +566,21 @@ Table~\ref{tab:wrds} and Figures~\ref{fig:wrds}--\ref{fig:wrdsmonths} summarize 
 \label{tab:wrds}
 \footnotesize
 \setlength{\tabcolsep}{3.4pt}
-\begin{tabular}{llccccccc}
+\resizebox{\textwidth}{!}{\begin{tabular}{llccccccc}
 \toprule
 WRDS Era (Anchor Date) & Surrogate & OOS Quotes & $\sqrt{v_0^*(t_1)}$ & DE $t_1$ & Autograd $t_1$ & \textbf{Speedup} & DE Week OOS & \textbf{Autograd Week OOS} \\
 \midrule
-2000 Dot-Com (\texttt{2000-04-10}) & \texttt{M3\_param\_wide} & $790$ & $23.2\%$ & $13.5\,\mathrm{s}$ & $\mathbf{1.40\,\mathrm{s}}$ & $\mathbf{9.6\times}$ & $17.15\,\mathrm{bps}$ & $\mathbf{19.44\,\mathrm{bps}}$ \\
-2008 GFC (\texttt{2008-10-14}) & \texttt{M3\_param\_crisis\_v2} & $598$ & $56.2\%$ & $9.0\,\mathrm{s}$ & $\mathbf{0.43\,\mathrm{s}}$ & $\mathbf{20.9\times}$ & $38.63\,\mathrm{bps}$ & $\mathbf{49.03\,\mathrm{bps}}$ \\
-2011 Downgrade (\texttt{2011-08-08}) & \texttt{M3\_param\_crisis\_v2} & $1{,}165$ & $40.2\%$ & $26.8\,\mathrm{s}$ & $\mathbf{0.87\,\mathrm{s}}$ & $\mathbf{30.8\times}$ & $27.72\,\mathrm{bps}$ & $\mathbf{31.77\,\mathrm{bps}}$ \\
-2015 Flash Crash (\texttt{2015-08-24}) & \texttt{M3\_param\_wide} & $3{,}682$ & $33.4\%$ & $37.3\,\mathrm{s}$ & $\mathbf{1.00\,\mathrm{s}}$ & $\mathbf{37.3\times}$ & $28.06\,\mathrm{bps}$ & $\mathbf{32.91\,\mathrm{bps}}$ \\
-2018 Volmageddon (\texttt{2018-02-05}) & \texttt{M3\_param\_crisis\_v2} & $11{,}254$ & $20.1\%$ & $42.7\,\mathrm{s}$ & $\mathbf{0.99\,\mathrm{s}}$ & $\mathbf{43.3\times}$ & $26.17\,\mathrm{bps}$ & $\mathbf{32.14\,\mathrm{bps}}$ \\
-2020 COVID (\texttt{2020-03-16}) & \texttt{M3\_param\_crisis\_v2} & $9{,}854$ & $92.6\%$ & $65.1\,\mathrm{s}$ & $\mathbf{2.53\,\mathrm{s}}$ & $\mathbf{25.8\times}$ & $53.46\,\mathrm{bps}$ & $\mathbf{51.32\,\mathrm{bps}}$ \\
-2021 Calm Bull (\texttt{2021-07-12}) & \texttt{M3\_param\_wide} & $24{,}509$ & $12.3\%$ & $305.0\,\mathrm{s}$ & $\mathbf{2.67\,\mathrm{s}}$ & $\mathbf{114.4\times}$ & $10.31\,\mathrm{bps}$ & $\mathbf{10.03\,\mathrm{bps}}$ \\
-2022 Bear CPI (\texttt{2022-10-10}) & \texttt{M3\_param\_wide} & $27{,}735$ & $30.3\%$ & $102.7\,\mathrm{s}$ & $\mathbf{2.60\,\mathrm{s}}$ & $\mathbf{39.4\times}$ & $14.31\,\mathrm{bps}$ & $\mathbf{17.96\,\mathrm{bps}}$ \\
-2025 Aug Full (\texttt{2025-08-25}) & \texttt{M3\_param\_wide} & $33{,}476$ & $12.1\%$ & $343.4\,\mathrm{s}$ & $\mathbf{2.64\,\mathrm{s}}$ & $\mathbf{130.1\times}$ & $9.03\,\mathrm{bps}$ & $\mathbf{9.25\,\mathrm{bps}}$ \\
+2000 Dot-Com (\texttt{2000-04-10}) & \texttt{M3\_param\_wide} & $790$ & $23.2\%$ & $13.5\,\mathrm{s}$ & $\mathbf{1.50\,\mathrm{s}}$ & $\mathbf{9.0\times}$ & $17.15\,\mathrm{bps}$ & $\mathbf{19.44\,\mathrm{bps}}$ \\
+2008 GFC (\texttt{2008-10-14}) & \texttt{M3\_param\_crisis\_v2} & $598$ & $56.2\%$ & $9.0\,\mathrm{s}$ & $\mathbf{0.45\,\mathrm{s}}$ & $\mathbf{20.3\times}$ & $38.63\,\mathrm{bps}$ & $\mathbf{49.04\,\mathrm{bps}}$ \\
+2011 Downgrade (\texttt{2011-08-08}) & \texttt{M3\_param\_crisis\_v2} & $1{,}165$ & $40.2\%$ & $26.8\,\mathrm{s}$ & $\mathbf{0.88\,\mathrm{s}}$ & $\mathbf{30.4\times}$ & $27.72\,\mathrm{bps}$ & $\mathbf{31.77\,\mathrm{bps}}$ \\
+2015 Flash Crash (\texttt{2015-08-24}) & \texttt{M3\_param\_wide} & $3{,}682$ & $33.4\%$ & $37.3\,\mathrm{s}$ & $\mathbf{1.02\,\mathrm{s}}$ & $\mathbf{36.7\times}$ & $28.06\,\mathrm{bps}$ & $\mathbf{32.84\,\mathrm{bps}}$ \\
+2018 Volmageddon (\texttt{2018-02-05}) & \texttt{M3\_param\_crisis\_v2} & $11{,}254$ & $20.1\%$ & $42.7\,\mathrm{s}$ & $\mathbf{0.99\,\mathrm{s}}$ & $\mathbf{43.1\times}$ & $26.17\,\mathrm{bps}$ & $\mathbf{32.13\,\mathrm{bps}}$ \\
+2020 COVID (\texttt{2020-03-16}) & \texttt{M3\_param\_crisis\_v2} & $9{,}854$ & $92.6\%$ & $65.1\,\mathrm{s}$ & $\mathbf{2.56\,\mathrm{s}}$ & $\mathbf{25.4\times}$ & $53.46\,\mathrm{bps}$ & $\mathbf{51.32\,\mathrm{bps}}$ \\
+2021 Calm Bull (\texttt{2021-07-12}) & \texttt{M3\_param\_wide} & $24{,}509$ & $12.3\%$ & $305.0\,\mathrm{s}$ & $\mathbf{2.75\,\mathrm{s}}$ & $\mathbf{111.0\times}$ & $10.31\,\mathrm{bps}$ & $\mathbf{10.03\,\mathrm{bps}}$ \\
+2022 Bear CPI (\texttt{2022-10-10}) & \texttt{M3\_param\_wide} & $27{,}735$ & $30.3\%$ & $102.7\,\mathrm{s}$ & $\mathbf{2.60\,\mathrm{s}}$ & $\mathbf{39.4\times}$ & $14.31\,\mathrm{bps}$ & $\mathbf{17.18\,\mathrm{bps}}$ \\
+2025 Aug Full (\texttt{2025-08-25}) & \texttt{M3\_param\_wide} & $33{,}476$ & $12.1\%$ & $343.4\,\mathrm{s}$ & $\mathbf{2.72\,\mathrm{s}}$ & $\mathbf{126.1\times}$ & $9.03\,\mathrm{bps}$ & $\mathbf{9.31\,\mathrm{bps}}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure}[htbp]
@@ -588,10 +597,80 @@ WRDS Era (Anchor Date) & Surrogate & OOS Quotes & $\sqrt{v_0^*(t_1)}$ & DE $t_1$
   \label{fig:wrdsmonths}
 \end{figure}
 
+\subsection{Empirical Market-Marked SPX Option Hedging and Nonlocal Bates SVJ PIDE}
+\label{sec:emphedge_bates}
+
+To confirm that neural Greek accuracy translates into real-world hedging performance when option cash flows are marked strictly to \emph{actual traded market bid--ask midpoints} rather than simulated model prices, \texttt{empirical\_spx\_hedging.py} tracks individual OptionMetrics \texttt{optionid} contracts day-to-day across our continuous August 2025 ($800$ OTM contract-days across $0.015 \le |x| \le 0.28$) and March 2020 COVID-19 ($400$ contract-days) panels, hedging with two liquid ATM calendar benchmark \texttt{SPX} options ($B^{(1)}, B^{(2)}$) plus the parity-implied forward move and accounting for institutional half-spread transaction costs. Table~\ref{tab:emphedge} and Figure~\ref{fig:emphedge} reveal two sharp empirical results:
+\begin{itemize}
+  \item \textbf{Standard PINN (\texttt{B0}) Destabilizes Real-Market Hedging, Whereas \texttt{CV-RBA-PINN} Tracks Exact Fourier}: Across $800$ August 2025 contract-days (unhedged RMSE $\$7.13$), \texttt{B0\_param} two-instrument \texttt{DGV} hedging blows up to $\mathbf{\$5.15}$ RMSE ($3.8\times$ \emph{worse} than simple Delta hedging at $\$1.37$, with $\$5.75$ tracking error against Exact Fourier), whereas \textbf{\texttt{CV-RBA-PINN} \texttt{DGV}} achieves $\mathbf{\$1.75}$ gross / $\mathbf{\$1.75}$ net-of-spread RMSE ($\mathbf{94.0\%}$ variance reduction, matching Exact Heston Fourier's $\$1.63$ within $\mathbf{\$0.44}$ tracking RMSE---$\mathbf{13.1\times}$ tighter than \texttt{B0}).
+  \item \textbf{COVID-19 Crash Leverage Reduction}: Across $400$ March 2020 COVID-19 contract-days (unhedged RMSE $\$32.61$), skew-adjusted minimum-variance Delta ($\Delta_{\mathrm{MV}} = \partial_F V + (\rho^*\xi^*/F)\,\partial_v V$) computed via \texttt{CV-RBA-PINN} slashes single-instrument hedging RMSE to $\mathbf{\$9.47}$ ($\mathbf{91.6\%}$ variance reduction, $95\%$ tail error $\$18.15$), outperforming OptionMetrics Vendor Black--Scholes Delta ($\$13.22$, tail $\$29.85$) by $\mathbf{28.4\%}$ and \texttt{B0} \texttt{DGV} ($\$18.70$) by $\mathbf{49.4\%}$, while two-instrument \texttt{CV-RBA-PINN} \texttt{DGV} ($\$10.50$) closely tracks Exact Fourier \texttt{DGV} ($\$9.86$).
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Empirical market-marked \texttt{SPX}/\texttt{SPXW} 1-day dynamic hedging backtest on traded Wharton WRDS OptionMetrics contracts ($1{,}200$ OTM contract-days across $0.015 \le |x| \le 0.28$, USD per index point).}
+\label{tab:emphedge}
+\footnotesize
+\setlength{\tabcolsep}{4.0pt}
+\resizebox{\textwidth}{!}{\begin{tabular}{llccccc}
+\toprule
+Market Panel & Strategy & Gross RMSE & Net-of-TC RMSE & MAE & $95\%$ Tail Err & Var.\ Red.\ \\
+\midrule
+\multirow{6}{*}{\shortstack[l]{August 2025\\($800$ contract-days)}}
+ & Unhedged & $\$7.13$ & $\$7.13$ & $\$4.19$ & $\$17.16$ & $0.0\%$ \\
+ & Vendor Black--Scholes $\Delta$ & $\$1.37$ & $\$1.38$ & $\$0.95$ & $\$3.28$ & $96.3\%$ \\
+ & \texttt{B0} PINN $\Delta\Gamma$V (baseline) & $\$5.15$ & $\$5.16$ & $\$3.54$ & $\$11.76$ & $47.8\%$ \\
+ & Vendor Black--Scholes $\Delta\Gamma$V & $\$0.76$ & $\$0.78$ & $\$0.59$ & $\$1.47$ & $98.9\%$ \\
+ & \textbf{\texttt{CV-RBA-PINN} $\Delta\Gamma$V} (ours) & $\mathbf{\$1.75}$ & $\mathbf{\$1.75}$ & $\mathbf{\$1.10}$ & $\mathbf{\$4.06}$ & $\mathbf{94.0\%}$ \\
+ & Exact Heston Fourier $\Delta\Gamma$V & $\$1.63$ & $\$1.63$ & $\$1.06$ & $\$3.89$ & $94.8\%$ \\
+\midrule
+\multirow{6}{*}{\shortstack[l]{March 2020 COVID\\($400$ contract-days)}}
+ & Unhedged & $\$32.61$ & $\$32.61$ & $\$23.66$ & $\$61.06$ & $0.0\%$ \\
+ & Vendor Black--Scholes $\Delta$ & $\$13.22$ & $\$13.22$ & $\$9.81$ & $\$29.85$ & $83.6\%$ \\
+ & \textbf{\texttt{CV-RBA} Skew MV-$\Delta$} (ours) & $\mathbf{\$9.47}$ & $\mathbf{\$9.46}$ & $\mathbf{\$7.50}$ & $\mathbf{\$18.15}$ & $\mathbf{91.6\%}$ \\
+ & \texttt{B0} PINN $\Delta\Gamma$V (baseline) & $\$18.70$ & $\$19.07$ & $\$12.95$ & $\$37.30$ & $67.1\%$ \\
+ & \textbf{\texttt{CV-RBA-PINN} $\Delta\Gamma$V} (ours) & $\mathbf{\$10.50}$ & $\mathbf{\$10.30}$ & $\mathbf{\$7.52}$ & $\mathbf{\$22.53}$ & $\mathbf{89.6\%}$ \\
+ & Exact Heston Fourier $\Delta\Gamma$V & $\$9.86$ & $\$9.62$ & $\$6.85$ & $\$24.23$ & $90.9\%$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.96\textwidth]{fig20_empirical_spx_hedging.png}
+  \caption{Empirical market-marked \texttt{SPX}/\texttt{SPXW} option dynamic hedging backtest on Wharton WRDS OptionMetrics \texttt{optionid} trajectories: gross and net-of-spread 1-day replication RMSE across $800$ August 2025 contract-days (left) and $400$ March 2020 COVID-19 crash contract-days (center), alongside the August 2025 realized hedging error density showing \texttt{CV-RBA-PINN} collapsing the wide tail of \texttt{B0} (right).}
+  \label{fig:emphedge}
+\end{figure}
+
+Finally, to resolve the residual crash-day smile steepness left by pure diffusive stochastic volatility and demonstrate that operator-level expected-variance subtraction extends beyond local PDEs to \emph{nonlocal partial integro-differential equations (PIDEs)}, \texttt{cvpinn\_bates.py} implements the Bates~\cite{bates1996jumps} stochastic-volatility jump-diffusion (\texttt{SVJ}) PIDE using the exact Merton~\cite{merton1976jumps} Poisson-weighted jump-diffusion call series $b_{\mathrm{MJD}}(x, w_{\mathrm{exp}}(v,\tau))$ as the analytic carrier and 16-node Gauss--Hermite quadrature for the nonlocal jump integral on the smooth neural residual $u(x,v,\tau)$. Because $b_{\mathrm{MJD}}$ satisfies the terminal kink, mean-reversion drift, and jump integral identically at $\xi = 0$, the PIDE residual source vanishes at $v = 0$ and $\xi = 0$ (\texttt{Gate G2\_bates} $= 1.36 \times 10^{-3}$ GH quadrature floor at $\tau = 0.02$). Table~\ref{tab:bates} and Figure~\ref{fig:bates} show that on Feller-violating Bates SVJ ($\kappa = 2.0, \theta = 0.04, \xi = 0.60, \rho = -0.75, \lambda = 0.80, \mu_J = -0.12, \sigma_J = 0.15$), \textbf{\texttt{M3\_bates}} achieves $\mathbf{0.06\%}$ Price, $\mathbf{5.98\%}$ Gamma ($\mathbf{13.4\times}$ below \texttt{B0\_bates}'s $79.88\%$), and $\mathbf{3.27\%}$ Vega ($\mathbf{21.0\times}$ below $68.59\%$) with $\mathbf{0/875}$ core negative-Gamma violations, while empirically adding Merton jumps cuts full-surface crash pricing RMSE by $\mathbf{29.7\%}$ on \texttt{2020-03-16} COVID-19 Black Monday ($101.05 \to \mathbf{70.99\,\mathrm{bps}}$ across $2{,}670$ quotes) and by $\mathbf{33.4\%}$ on the \texttt{2024-08-05} Yen-carry crash ($21.45 \to \mathbf{14.29\,\mathrm{bps}}$ across $5{,}415$ quotes).
+
+\begin{table}[htbp]
+\centering
+\caption{Nonlocal 2D Bates SVJ jump-diffusion PIDE benchmark on the 875-point Fourier oracle ($\lambda = 0.80, \mu_J = -0.12, \sigma_J = 0.15$) and empirical crash-day \texttt{SPX} surface pricing improvement.}
+\label{tab:bates}
+\footnotesize
+\setlength{\tabcolsep}{4.2pt}
+\resizebox{\textwidth}{!}{\begin{tabular}{lcccccccc}
+\toprule
+PIDE Model & Price $c$ & Delta $c_x$ & \textbf{Gamma} $\Gamma$ & \textbf{Vega} $c_v$ & \textbf{Vanna} $c_{xv}$ & Core Neg.\ $\Gamma$ & COVID \texttt{2020-03-16} & Yen \texttt{2024-08-05} \\
+\midrule
+\texttt{B0\_bates} (standard PIDE) & $0.0483$ & $0.1478$ & $0.7988$ & $0.6859$ & $0.9946$ & $2 / 875$ & \multirow{2}{*}{\shortstack[c]{Heston $101.05\,\mathrm{bps}$\\$\to$ \textbf{Bates $\mathbf{70.99\,\mathrm{bps}}$}}} & \multirow{2}{*}{\shortstack[c]{Heston $21.45\,\mathrm{bps}$\\$\to$ \textbf{Bates $\mathbf{14.29\,\mathrm{bps}}$}}} \\
+\textbf{\texttt{M3\_bates}} (Merton CV PIDE) & $\mathbf{0.0006}$ & $\mathbf{0.0034}$ & $\mathbf{0.0598}$ & $\mathbf{0.0327}$ & $\mathbf{0.1329}$ & $\mathbf{0 / 875}$ & & \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.96\textwidth]{fig21_bates_pide_crash_skew.png}
+  \caption{Nonlocal 2D Bates SVJ jump-diffusion PIDE control-variate (\texttt{M3\_bates}) and crash-day SPX skew fit: 875-point relative RMSE across all 6 outputs vs.\ Exact Bates Fourier (left), corner-slice ($\tau = 0.05, v = 0.005$) normalized Gamma profile (center), and empirical SPX crash-surface RMSE reduction from pure Heston to Bates SVJ on \texttt{2020-03-16} and \texttt{2024-08-05} (right).}
+  \label{fig:bates}
+\end{figure}
+
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-Subtracting an exact expected-variance Black--Scholes carrier inside normalized pricing PDEs resolves the terminal payoff corner and degenerate $v = 0$ drift bottleneck that have prevented label-free financial PINNs from matching second-order Greeks. Combined with self-similar $z = x/\sqrt{w_{\mathrm{exp}}}$ boundary-layer coordinates, structural $\operatorname{sech}$ wing decay, and multi-round \texttt{RAR} Strong-Wolfe \texttt{L-BFGS}, \textbf{CV-RBA-PINN} (\texttt{M3}) delivers $1\%\text{--}3\%$ Gamma and $1\%\text{--}7\%$ Vega/Vanna accuracy across Feller-violating, time-dependent, amortized 10D parametric, non-affine 2D Heston-SLV, and live Cboe \texttt{SPX}/\texttt{SPXW} ($\xi^* = 1.50$) regimes, translating directly into near-exact dynamic Gamma--Vega option replication and $10\times\text{--}130\times$ faster gradient-based calibration verified across $248$ empirical SPX trading days ($5.44\text{M}+$ quotes, 2000--2026)---every one of which violates the Feller condition. Promising next extensions include PIDE jump-diffusion control variates for Bates and rough-Bergomi Markovian lifts in ultra-short 0DTE equity index options.
+Subtracting an exact expected-variance Black--Scholes or Merton jump-diffusion carrier inside normalized pricing PDEs and PIDEs resolves the terminal payoff corner and degenerate $v = 0$ drift bottleneck that have prevented label-free financial PINNs from matching second-order Greeks. Combined with self-similar $z = x/\sqrt{w_{\mathrm{exp}}}$ boundary-layer coordinates, structural $\operatorname{sech}$ wing decay, and multi-round \texttt{RAR} Strong-Wolfe \texttt{L-BFGS}, \textbf{CV-RBA-PINN} (\texttt{M3}) delivers $1\%\text{--}3\%$ Gamma and $1\%\text{--}7\%$ Vega/Vanna accuracy across Feller-violating, time-dependent, amortized 10D parametric, non-affine 2D Heston-SLV ($2.01\% \pm 0.41\%$ 3-seed Gamma), nonlocal 2D Bates SVJ jump-diffusion PIDEs ($5.98\%$ Gamma, $3.27\%$ Vega), and live Cboe \texttt{SPX}/\texttt{SPXW} ($\xi^* = 1.50$) regimes. Validated across $248$ empirical SPX trading days ($5.44\text{M}+$ quotes, 2000--2026)---every one of which violates the Feller condition---our surrogates deliver $10\times\text{--}130\times$ faster gradient-based calibration and accurate market-marked dynamic option hedging across both normal and systemic-crash markets. Promising next extensions include amortized parametric Bates/Kou PIDE surrogates and rough-Bergomi Markovian lifts for intraday 0DTE index options.
 
 \bibliographystyle{plainnat}
 \bibliography{references}

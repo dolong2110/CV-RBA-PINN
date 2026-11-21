@@ -424,6 +424,24 @@ def train_slv_job(arm, seed, overwrite=False):
     }
     with open(jpath, "w") as f:
         json.dump(rec, f, indent=2)
+    try:
+        import training_logger as tlog
+        ov_clean = {k: round(metrics["overall"][k]["rel_rmse"], 4) for k in ("c", "cx", "gam", "cv", "cxv", "cvv")}
+        tlog.log_training_event(
+            run_id=f"slv/{arm}_SLV_seed{seed}",
+            arm=arm,
+            dataset_or_regime="Heston_SLV",
+            seed=seed,
+            train_sec=train_sec,
+            checkpoint_path=cpath,
+            lbfgs_post_loss=info.get("lbfgs_post_loss"),
+            n_params=info.get("n_params"),
+            v_max=0.5,
+            greeks_overall=ov_clean,
+            notes=f"Non-affine 2D Heston-SLV seed {seed} vs 800x400 ADI oracle",
+        )
+    except Exception:
+        pass
     return rec, False
 
 

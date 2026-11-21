@@ -127,6 +127,28 @@ class TestExtensions(unittest.TestCase):
         diff = (slvmod.source_slv(x, v, tau, slv0) - cvpinn.source(x, v, tau, slv0.to_heston(), "expected")).abs().max().item()
         self.assertLessEqual(diff, 1e-15)
 
+    def test_bates_pide_gates_and_zero_jump_reduction(self):
+        import cvpinn_bates as bmod
+        import heston_grid_vec as hgv
+
+        dom = cvpinn.Domain(v_max=0.5)
+        bp = bmod.BatesSVJ()
+        # Exact intrinsic payoff at tau = 0
+        x0 = torch.tensor([-0.3, 0.0, 0.3], dtype=torch.float64)
+        v0 = torch.tensor([0.01, 0.04, 0.16], dtype=torch.float64)
+        c0 = bmod.merton_carrier_expected(x0, v0, torch.zeros_like(x0), bp)
+        self.assertLessEqual(float((c0 - torch.clamp(torch.exp(x0) - 1.0, min=0.0)).abs().max().item()), 1e-15)
+        # Source vanishes identically at v = 0 and xi = 0
+        self.assertEqual(float(bmod.source_bates(x0, torch.zeros_like(x0), torch.full_like(x0, 0.25), bp).abs().max().item()), 0.0)
+        bp_xi0 = bmod.BatesSVJ(xi=0.0)
+        self.assertEqual(float(bmod.source_bates(x0, v0, torch.full_like(x0, 0.25), bp_xi0).abs().max().item()), 0.0)
+        # When lam = 0, Bates Fourier oracle matches Heston Fourier oracle to machine precision across all 6 outputs
+        bp_nojump = bmod.BatesSVJ(lam=0.0)
+        _, ref_b = bmod.bates_eval_grid(bp_nojump, taus=(0.05, 0.5), vs=(0.01, 0.04))
+        _, ref_h = hgv.heston_eval_grid((bp.kappa, bp.theta, bp.xi, bp.rho), taus=(0.05, 0.5), vs=(0.01, 0.04))
+        for k in ("c", "cx", "gam", "cv", "cxv", "cvv"):
+            self.assertLessEqual(float(np.max(np.abs(ref_b[k] - ref_h[k]))), 1e-13)
+
 
 if __name__ == "__main__":
     unittest.main()

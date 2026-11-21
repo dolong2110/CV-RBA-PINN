@@ -1,0 +1,116 @@
+{
+  "August_2025_Normal_21d": {
+    "n_transitions_days": 20,
+    "n_contract_days": 800,
+    "m3_vs_exact_fourier_tracking_rmse_dlr": 0.4393,
+    "b0_vs_exact_fourier_tracking_rmse_dlr": 5.7533,
+    "strategies": {
+      "Unhedged": {
+        "gross_rmse_dlr": 7.1265,
+        "net_tc_rmse_dlr": 7.1265,
+        "gross_mae_dlr": 4.1889,
+        "p95_abs_err_dlr": 17.155,
+        "variance_reduction_pct": 0.0
+      },
+      "Vendor_BS_Delta": {
+        "gross_rmse_dlr": 1.3715,
+        "net_tc_rmse_dlr": 1.3813,
+        "gross_mae_dlr": 0.9478,
+        "p95_abs_err_dlr": 3.2792,
+        "variance_reduction_pct": 96.3
+      },
+      "CV_RBA_MV_Delta": {
+        "gross_rmse_dlr": 4.2518,
+        "net_tc_rmse_dlr": 4.2514,
+        "gross_mae_dlr": 3.0642,
+        "p95_abs_err_dlr": 9.211,
+        "variance_reduction_pct": 64.4
+      },
+      "B0_PINN_DGV": {
+        "gross_rmse_dlr": 5.1501,
+        "net_tc_rmse_dlr": 5.1557,
+        "gross_mae_dlr": 3.544,
+        "p95_abs_err_dlr": 11.7621,
+        "variance_reduction_pct": 47.78
+      },
+      "Vendor_BS_DGV": {
+        "gross_rmse_dlr": 0.7639,
+        "net_tc_rmse_dlr": 0.7799,
+        "gross_mae_dlr": 0.5888,
+        "p95_abs_err_dlr": 1.4696,
+        "variance_reduction_pct": 98.85
+      },
+      "CV_RBA_PINN_DGV": {
+        "gross_rmse_dlr": 1.7451,
+        "net_tc_rmse_dlr": 1.7477,
+        "gross_mae_dlr": 1.0995,
+        "p95_abs_err_dlr": 4.0601,
+        "variance_reduction_pct": 94.0
+      },
+      "Exact_Fourier_DGV": {
+        "gross_rmse_dlr": 1.627,
+        "net_tc_rmse_dlr": 1.6328,
+        "gross_mae_dlr": 1.0592,
+        "p95_abs_err_dlr": 3.8925,
+        "variance_reduction_pct": 94.79
+      }
+    }
+  },
+  "March_2020_COVID_22d": {
+    "n_transitions_days": 10,
+    "n_contract_days": 400,
+    "m3_vs_exact_fourier_tracking_rmse_dlr": 6.3773,
+    "b0_vs_exact_fourier_tracking_rmse_dlr": 23.8143,
+    "strategies": {
+      "Unhedged": {
+        "gross_rmse_dlr": 32.6139,
+        "net_tc_rmse_dlr": 32.6139,
+        "gross_mae_dlr": 23.6619,
+        "p95_abs_err_dlr": 61.0575,
+        "variance_reduction_pct": 0.0
+      },
+      "Vendor_BS_Delta": {
+        "gross_rmse_dlr": 13.2218,
+        "net_tc_rmse_dlr": 13.2176,
+        "gross_mae_dlr": 9.8123,
+        "p95_abs_err_dlr": 29.8522,
+        "variance_reduction_pct": 83.56
+      },
+      "CV_RBA_MV_Delta": {
+        "gross_rmse_dlr": 9.4685,
+        "net_tc_rmse_dlr": 9.464,
+        "gross_mae_dlr": 7.5019,
+        "p95_abs_err_dlr": 18.1458,
+        "variance_reduction_pct": 91.57
+      },
+      "B0_PINN_DGV": {
+        "gross_rmse_dlr": 18.701,
+        "net_tc_rmse_dlr": 19.0726,
+        "gross_mae_dlr": 12.9482,
+        "p95_abs_err_dlr": 37.3021,
+        "variance_reduction_pct": 67.12
+      },
+      "Vendor_BS_DGV": {
+        "gross_rmse_dlr": 5.315,
+        "net_tc_rmse_dlr": 5.3167,
+        "gross_mae_dlr": 4.0376,
+        "p95_abs_err_dlr": 11.1376,
+        "variance_reduction_pct": 97.34
+      },
+      "CV_RBA_PINN_DGV": {
+        "gross_rmse_dlr": 10.4976,
+        "net_tc_rmse_dlr": 10.2972,
+        "gross_mae_dlr": 7.5177,
+        "p95_abs_err_dlr": 22.534,
+        "variance_reduction_pct": 89.64
+      },
+      "Exact_Fourier_DGV": {
+        "gross_rmse_dlr": 9.8625,
+        "net_tc_rmse_dlr": 9.6225,
+        "gross_mae_dlr": 6.8459,
+        "p95_abs_err_dlr": 24.2297,
+        "variance_reduction_pct": 90.86
+      }
+    }
+  }
+}

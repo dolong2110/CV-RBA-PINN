@@ -628,6 +628,8 @@ def render_final_report_md(log):
         ("fig17_spx_168day_rolling_calibration.png", "Full-Archive 168-Trading-Day Rolling SPX Calibration & Next-Day OOS Backtest (`4.12M` Quotes, `M3_param_wide`)"),
         ("fig18_wrds_multidecade_study.png", "Quarter-Century Wharton WRDS OptionMetrics IvyDB US 9-Era SPX Validation (`2000-2025`, `1.28M` Rows)"),
         ("fig19_wrds_march2020_aug2025_trajectories.png", "Continuous Full-Month WRDS OptionMetrics Rolling Trajectories: March 2020 COVID-19 (`22d`) vs August 2025 (`21d`)"),
+        ("fig20_empirical_spx_hedging.png", "Empirical Market-Marked SPX/SPXW Option Dynamic Hedging Backtest (`1,200` WRDS Contract-Days)"),
+        ("fig21_bates_pide_crash_skew.png", "Nonlocal 2D Bates SVJ Jump-Diffusion PIDE Control-Variate (`M3_bates`) & Crash-Day SPX Skew Fit"),
     ]
     for fn, desc in figs:
         lines.append(f"- [{fn}](file://{os.path.join(ROOT, 'paper', fn)}): {desc}")
@@ -654,7 +656,10 @@ def main():
         "ablations_p2": {},
         "param8d": {},
         "slv": {},
+        "slv_3seed": _load_json("runs/slv/slv_3seed_summary.json") or {},
+        "bates_pide": _load_json("runs/bates_pide_report.json") or {},
         "hedging": _load_json("runs/hedging_report.json") or {},
+        "empirical_spx_hedging": _load_json("runs/empirical_spx_hedging_report.json") or {},
         "diff_calibration": _load_json("runs/diff_calibration_report.json") or {},
         "real_spx": _load_json("runs/real_spx_report.json") or {},
         "historical_spx": _load_json("runs/historical_spx_multiday_report.json") or {},

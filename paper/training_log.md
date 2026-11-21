@@ -1,6 +1,6 @@
 # Master Training Telemetry Log (`CV-RBA-PINN`)
 
-- **Total Logged Training Runs**: `33` (structured JSONL at `runs/training_history_log.jsonl`)
+- **Total Logged Training Runs**: `39` (structured JSONL at `runs/training_history_log.jsonl`)
 - Every single training execution automatically appends its exact hyperparameters, loss descent, wall-clock seconds, 6-Greek accuracy, and market pricing fit to this registry.
 
 | UTC Timestamp | Run ID | Arm | Regime / Dataset | $v_{\max}$ | Train (s) | Post-LBFGS Loss | Price Rel | Gamma Rel | Vega Rel | Vanna Rel | Market vs Fourier (bps) |
@@ -36,5 +36,11 @@
 | `2026-11-21T01:13:09Z` | `wrds_crises/M3_sech_80_US11_seed0` | `M3_sech_80` | `WRDS_US11_2011-08-08` | `0.50` | `418.7` | `1.83e-04` | `0.0067` | `0.1185` | `0.1095` | `0.2734` | `36.49` |
 | `2026-11-21T01:17:20Z` | `wrds_crises/B0_VOLM18_seed0` | `B0` | `WRDS_VOLM18_2018-02-05` | `0.50` | `244.2` | `1.26e-03` | `0.0361` | `0.8826` | `0.5943` | `0.9876` | `71.27` |
 | `2026-11-21T01:24:07Z` | `wrds_crises/M3_sech_80_VOLM18_seed0` | `M3_sech_80` | `WRDS_VOLM18_2018-02-05` | `0.50` | `407.7` | `1.21e-04` | `0.0033` | `0.1371` | `0.0810` | `0.2441` | `12.44` |
-| `2026-11-21T01:35:28Z` | `wrds_covid/B0_COVID_seed0` | `B0` | `WRDS_COVID20_2020-03-16` | `1.00` | `198.0` | — | `0.0280` | `0.7990` | `0.7302` | `0.9847` | `315.99` |
-| `2026-11-21T01:35:28Z` | `wrds_covid/M3_sech_80_COVID_seed0` | `M3_sech_80` | `WRDS_COVID20_2020-03-16` | `1.00` | `412.0` | — | `0.0093` | `0.3851` | `0.2173` | `0.5571` | `57.36` |
+| `2026-11-21T12:53:18Z` | `wrds_covid/B0_COVID_seed0` | `B0` | `WRDS_COVID20_2020-03-16` | `1.00` | `198.0` | — | `0.0280` | `0.7990` | `0.7302` | `0.9847` | `315.99` |
+| `2026-11-21T12:53:18Z` | `wrds_covid/M3_sech_80_COVID_seed0` | `M3_sech_80` | `WRDS_COVID20_2020-03-16` | `1.00` | `412.0` | — | `0.0093` | `0.3851` | `0.2173` | `0.5571` | `57.36` |
+| `2026-11-21T12:59:39Z` | `slv/B0_slv_SLV_seed1` | `B0_slv` | `Heston_SLV` | `0.50` | `249.4` | `3.57e-03` | `0.0463` | `0.8022` | `0.7046` | `0.9982` | — |
+| `2026-11-21T13:03:47Z` | `slv/B0_slv_SLV_seed2` | `B0_slv` | `Heston_SLV` | `0.50` | `247.6` | `2.46e-03` | `0.0504` | `0.7617` | `0.7486` | `0.9926` | — |
+| `2026-11-21T13:23:44Z` | `slv/M3_slv_SLV_seed1` | `M3_slv` | `Heston_SLV` | `0.50` | `1197.5` | `1.54e-06` | `0.0002` | `0.0196` | `0.0126` | `0.0397` | — |
+| `2026-11-21T13:43:12Z` | `slv/M3_slv_SLV_seed2` | `M3_slv` | `Heston_SLV` | `0.50` | `1167.5` | `2.60e-06` | `0.0004` | `0.0244` | `0.0168` | `0.0538` | — |
+| `2026-11-21T13:52:20Z` | `bates/B0_bates_BATES_seed0` | `B0_bates` | `Bates_SVJ_PIDE` | `0.50` | `219.0` | `2.86e-03` | `0.0483` | `0.7988` | `0.6859` | `0.9946` | — |
+| `2026-11-21T14:09:26Z` | `bates/M3_bates_BATES_seed0` | `M3_bates` | `Bates_SVJ_PIDE` | `0.50` | `1025.4` | `7.48e-06` | `0.0006` | `0.0598` | `0.0327` | `0.1329` | — |

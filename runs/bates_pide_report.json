@@ -1,0 +1,104 @@
+{
+  "bates_benchmark_params": {
+    "kappa": 2.0,
+    "theta": 0.04,
+    "xi": 0.6,
+    "rho": -0.75,
+    "lam": 0.8,
+    "mu_j": -0.12,
+    "sig_j": 0.15,
+    "n_merton": 16
+  },
+  "gate2_bates": 0.0013628539345696515,
+  "gate3_bates": 0.001362853934569655,
+  "B0_bates": {
+    "train_sec": 218.98,
+    "overall": {
+      "c": 0.0483,
+      "cx": 0.1478,
+      "gam": 0.7988,
+      "cv": 0.6859,
+      "cxv": 0.9946,
+      "cvv": 0.999
+    },
+    "arbitrage": {
+      "neg_gam_count": 22,
+      "neg_gam_core_count": 2,
+      "min_gam": -0.23591923735915477,
+      "floor_viol_count": 67,
+      "min_c_minus_payoff": -0.0200181754503046,
+      "delta_oob_count": 32,
+      "put_parity_max_err": 0.0
+    }
+  },
+  "M3_bates": {
+    "train_sec": 1025.44,
+    "overall": {
+      "c": 0.0006,
+      "cx": 0.0034,
+      "gam": 0.0598,
+      "cv": 0.0327,
+      "cxv": 0.1329,
+      "cvv": 0.2525
+    },
+    "arbitrage": {
+      "neg_gam_count": 22,
+      "neg_gam_core_count": 0,
+      "min_gam": -0.09831873408567884,
+      "floor_viol_count": 37,
+      "min_c_minus_payoff": -0.0005222408209832876,
+      "delta_oob_count": 36,
+      "put_parity_max_err": 1.1102230246251565e-16
+    }
+  },
+  "empirical_crash_calibrations": {
+    "2020_03_16_COVID_BlackMonday": {
+      "n_quotes": 2670,
+      "heston_all_bps": 101.05,
+      "bates_all_bps": 70.99,
+      "heston_short_tau_bps": 37.73,
+      "bates_short_tau_bps": 38.2,
+      "heston_params": {
+        "kappa": 5.3888,
+        "theta": 0.19,
+        "xi": 2.8987,
+        "rho": -0.9781,
+        "v0": 0.853
+      },
+      "bates_params": {
+        "kappa": 5.2299,
+        "theta": 0.0858,
+        "xi": 2.7535,
+        "rho": -0.98,
+        "v0": 0.812,
+        "lam": 0.675,
+        "mu_j": -0.2192,
+        "sig_j": 0.1816
+      }
+    },
+    "2024_08_05_YenCarry_Crash": {
+      "n_quotes": 5415,
+      "heston_all_bps": 21.45,
+      "bates_all_bps": 14.29,
+      "heston_short_tau_bps": 9.65,
+      "bates_short_tau_bps": 9.5,
+      "heston_params": {
+        "kappa": 7.3437,
+        "theta": 0.0618,
+        "xi": 2.8889,
+        "rho": -0.7996,
+        "v0": 0.1036
+      },
+      "bates_params": {
+        "kappa": 4.9671,
+        "theta": 0.046,
+        "xi": 2.8241,
+        "rho": -0.7619,
+        "v0": 0.0931,
+        "lam": 0.422,
+        "mu_j": -0.1368,
+        "sig_j": 0.0859
+      }
+    }
+  }
+}
