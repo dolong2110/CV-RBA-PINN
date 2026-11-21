@@ -1,6 +1,9 @@
 # CV-RBA-PINN: Control-Variate & Boundary-Layer Physics-Informed Neural Networks for Stochastic, Stochastic-Local, and Jump-Diffusion Volatility Greeks, Hedging, and Fast SPX Calibration
 
-[![CV-RBA-PINN Verification & Unit Tests](https://github.com/dolong2110/CV-RBA-PINN/actions/workflows/ci.yml/badge.svg)](https://github.com/dolong2110/CV-RBA-PINN/actions/workflows/ci.yml)
+[![Unit Tests](https://img.shields.io/badge/tests-23%2F23%20passing-brightgreen)](https://github.com/dolong2110/CV-RBA-PINN/tree/master/tests)
+[![Python 3.10 | 3.11](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](https://github.com/dolong2110/CV-RBA-PINN/blob/master/requirements.txt)
+[![PyTorch float64](https://img.shields.io/badge/PyTorch-float64-EE4C2C)](https://github.com/dolong2110/CV-RBA-PINN/blob/master/cvpinn.py)
+[![Manuscript PDFs](https://img.shields.io/badge/manuscript-PDF%20%26%20elsarticle-success)](https://github.com/dolong2110/CV-RBA-PINN/blob/master/paper/main.pdf)
 
 This repository contains the complete PyTorch (`float64`) implementation, numerical PDE/PIDE/Fourier reference oracles, trained checkpoints (`39` logged runs), empirical calibration & hedging pipelines, and compiled Overleaf / Elsevier LaTeX manuscripts (`paper/main.pdf`, `paper/main.tex`, `paper/main_elsarticle.tex`) for **CV-RBA-PINN**.
 
